@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ورشة الصيانة</title>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --line:#dde2e8; --ink:#1d2733; --muted:#6b7684; --pri:#1f6feb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 Tahoma, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#1d2733; color:#fff; padding:10px 18px; display:flex; gap:14px; align-items:center; }
+  header b { font-size:17px; margin-inline-end:auto; }
+  header button { background:transparent; color:#fff; border:1px solid #556; }
+  main { max-width:1150px; margin:18px auto; padding:0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px; }
+  h2 { margin:0 0 12px; font-size:18px; } h3 { margin:14px 0 8px; font-size:16px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:8px; }
+  input, select, textarea { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px; font:inherit; color:var(--ink); background:#fff; margin-top:3px; }
+  textarea { min-height:70px; }
+  button { padding:7px 14px; border:1px solid var(--line); border-radius:6px; background:#fff; font:inherit; cursor:pointer; }
+  button.pri { background:var(--pri); color:#fff; border-color:var(--pri); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0 14px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:start; padding:7px 8px; border-bottom:1px solid var(--line); font-size:14px; }
+  tr.click { cursor:pointer; } tr.click:hover { background:#f0f5ff; }
+  .badge { display:inline-block; padding:1px 9px; border-radius:10px; font-size:12px; color:#fff; }
+  .s-received{background:#7a8594}.s-assigned{background:#1f6feb}.s-in_repair{background:#0b7fab}
+  .s-waiting_customer{background:#d97706}.s-repaired{background:#15803d}.s-delivered{background:#4b5563}.s-rejected{background:#b91c1c}
+  .muted { color:var(--muted); font-size:13px; }
+  .thumbs { display:flex; gap:8px; flex-wrap:wrap; }
+  .thumbs img { width:110px; height:85px; object-fit:cover; border-radius:6px; border:1px solid var(--line); cursor:pointer; }
+  .err { color:#b91c1c; margin:6px 0; }
+  .hidden { display:none !important; }
+  #login { max-width:340px; margin:80px auto; }
+  /* label print: 50x30 mm */
+  #label { display:none; }
+  @media print {
+    @page { size:50mm 30mm; margin:0; }
+    header, main, #login { display:none !important; }
+    html, body { width:50mm; height:30mm; margin:0; overflow:hidden; background:#fff; }
+    #label { display:block; overflow:hidden; width:50mm; height:30mm; padding:1.5mm 2mm; direction:ltr; font:8pt/1.2 Tahoma, sans-serif; color:#000; }
+    #label .big { font-size:11pt; font-weight:bold; }
+    #label svg { width:46mm; height:8mm; display:block; }
+  }
+</style>
+</head>
+<body>
+<header class="hidden" id="top">
+  <b>ورشة الصيانة</b>
+  <button onclick="go('list')">التذاكر</button>
+  <button id="nav-new" onclick="go('new')">+ استلام جهاز</button>
+  <button id="nav-users" onclick="go('users')">المستخدمين والإعدادات</button>
+  <span id="me" class="muted" style="color:#cbd"></span>
+  <button onclick="logout()">خروج</button>
+</header>
+
+<div id="login" class="card hidden">
+  <h2>تسجيل الدخول</h2>
+  <label>اسم المستخدم<input id="lu" autofocus></label>
+  <label>كلمة المرور<input id="lp" type="password"></label>
+  <div class="err" id="lerr"></div>
+  <button class="pri" onclick="login()">دخول</button>
+</div>
+
+<main id="view"></main>
+<div id="label"></div>
+
+<script>
+const ST = {received:'مستلم', assigned:'متعيّن لفني', in_repair:'تحت الصيانة', waiting_customer:'مستني موافقة العميل',
+  repaired:'تم الإصلاح', delivered:'اتسلم للعميل', rejected:'مرفوض / مرتجع'};
+const ROLE = {admin:'مدير النظام', manager:'مدير الورشة', reception:'استقبال', technician:'فني صيانة'};
+const ERR = {bad_login:'اسم المستخدم أو كلمة المرور غلط', forbidden:'مش مسموح لك بالعملية دي', 'missing:serial':'السيريال مطلوب',
+  'missing:customer_name':'اسم العميل مطلوب', 'missing:name':'اسم القطعة مطلوب', 'missing:text':'اكتب وصف الشغل',
+  username_taken:'اسم المستخدم موجود قبل كده', short_password:'كلمة المرور لازم 4 حروف على الأقل', no_printer_ip:'اكتب IP الطابعة من الإعدادات',
+  printer_unreachable:'الطابعة مش بترد - اتأكد إنها شغالة والـ IP صح', photo_too_large:'الصورة أكبر من 8 ميجا', bad_old_password:'كلمة المرور القديمة غلط'};
+let ME = null, USERS = [];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const badge = s => `<span class="badge s-${s}">${ST[s]||s}</span>`;
+const isMgr = () => ['admin','manager'].includes(ME.role);
+
+async function api(path, body) {
+  const r = await fetch('/api/' + path, body === undefined ? {} :
+    {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('login'); }
+  if (!r.ok) { const m = ERR[j.error] || ('خطأ: ' + (j.error || r.status)); alert(m); throw new Error(m); }
+  return j;
+}
+function showLogin() { ME = null; $('#top').classList.add('hidden'); $('#view').innerHTML = ''; $('#login').classList.remove('hidden'); }
+async function login() {
+  try { await api('login', {username:$('#lu').value, password:$('#lp').value}); $('#lerr').textContent=''; boot(); }
+  catch (e) { $('#lerr').textContent = e.message; }
+}
+$('#lp').addEventListener('keydown', e => e.key === 'Enter' && login());
+async function logout() { await api('logout', {}); showLogin(); }
+
+async function boot() {
+  try { ME = await api('me'); } catch { return; }
+  $('#login').classList.add('hidden'); $('#top').classList.remove('hidden');
+  $('#me').textContent = `${ME.full_name} (${ROLE[ME.role]})`;
+  $('#nav-new').classList.toggle('hidden', ME.role === 'technician');
+  $('#nav-users').classList.toggle('hidden', ME.role !== 'admin');
+  USERS = await api('users');
+  go('list');
+}
+function go(v, id) { ({list:viewList, new:viewNew, ticket:viewTicket, users:viewUsers})[v](id); }
+
+function readPhotos(input) {   // resize to max 1600px so the DB folder stays small
+  return Promise.all([...input.files].map(f => new Promise(res => {
+    const img = new Image(); img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.85)); URL.revokeObjectURL(img.src);
+    }; img.src = URL.createObjectURL(f);
+  })));
+}
+
+// ---------- list
+async function viewList() {
+  $('#view').innerHTML = `<div class="card"><div class="row">
+    <input id="q" placeholder="ابحث بالسيريال أو رقم التذكرة أو اسم/موبايل العميل" style="flex:1;min-width:250px">
+    <select id="fs" style="width:200px"><option value="">كل الحالات</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+    <button onclick="loadList()">بحث</button></div></div>
+    <div class="card"><table><thead><tr><th>#</th><th>السيريال</th><th>الجهاز</th><th>العميل</th><th>الحالة</th><th>الفني</th><th>دخل في</th></tr></thead>
+    <tbody id="rows"></tbody></table></div>`;
+  $('#q').addEventListener('keydown', e => e.key === 'Enter' && loadList());
+  $('#fs').onchange = loadList;
+  loadList();
+}
+async function loadList() {
+  const list = await api(`tickets?q=${encodeURIComponent($('#q').value)}&status=${$('#fs').value}`);
+  $('#rows').innerHTML = list.map(t => `<tr class="click" onclick="go('ticket',${t.id})"><td>${t.id}</td><td>${esc(t.serial)}</td>
+    <td>${esc([t.device_type,t.brand,t.model].filter(Boolean).join(' '))}</td><td>${esc(t.customer_name)}<div class="muted">${esc(t.customer_phone)}</div></td>
+    <td>${badge(t.status)}</td><td>${esc(t.assigned_to_name)||'<span class="muted">—</span>'}</td><td>${t.received_at.slice(0,16)}</td></tr>`).join('')
+    || '<tr><td colspan="7" class="muted">مفيش تذاكر</td></tr>';
+}
+
+// ---------- new ticket
+function viewNew() {
+  $('#view').innerHTML = `<div class="card"><h2>استلام جهاز جديد</h2>
+    <h3>العميل</h3><div class="grid">
+      <label>بحث عن عميل موجود<input id="cs" placeholder="اكتب اسم أو موبايل"></label>
+      <label>اسم العميل *<input id="cn"></label><label>موبايل العميل<input id="cp"></label></div>
+    <div id="csr" class="row"></div><input type="hidden" id="cid">
+    <h3>الجهاز</h3><div class="grid">
+      <label>السيريال * (اكتبه أو امسحه بالباركود)<input id="serial"></label>
+      <label>نوع الجهاز<input id="dt" placeholder="مثلاً: لابتوب، طابعة، UPS"></label>
+      <label>الماركة<input id="br"></label><label>الموديل<input id="md"></label></div>
+    <div id="prev" class="muted"></div>
+    <label>الإكسسوارات اللي جت معاه<input id="acc" placeholder="شاحن، شنطة، كابل..."></label>
+    <label>العطل حسب كلام العميل<textarea id="cmp"></textarea></label>
+    <label>صور الجهاز وقت الاستلام<input type="file" id="ph" accept="image/*" multiple></label>
+    <p class="muted">المستلم: ${esc(ME.full_name)} — بيتسجل تلقائي</p>
+    <button class="pri" onclick="createTicket()">حفظ وفتح التذكرة</button></div>`;
+  $('#cs').oninput = async e => {
+    const v = e.target.value.trim(); if (v.length < 2) { $('#csr').innerHTML=''; return; }
+    const cs = await api('customers?q=' + encodeURIComponent(v));
+    $('#csr').innerHTML = cs.map(c => `<button onclick='pickCust(${JSON.stringify(c)})'>${esc(c.name)} ${esc(c.phone)}</button>`).join('');
+  };
+  $('#serial').onchange = async e => {
+    const old = await api('tickets?q=' + encodeURIComponent(e.target.value.trim()));
+    const same = old.filter(t => t.serial === e.target.value.trim());
+    $('#prev').innerHTML = same.length ? `⚠ الجهاز ده دخل الورشة قبل كده: ${same.map(t=>`<a href="#" onclick="go('ticket',${t.id});return false">#${t.id}</a>`).join('، ')}` : '';
+  };
+  $('#cn').oninput = () => { $('#cid').value = ''; };
+}
+function pickCust(c) { $('#cid').value = c.id; $('#cn').value = c.name; $('#cp').value = c.phone || ''; $('#csr').innerHTML = ''; }
+async function createTicket() {
+  const photos = await readPhotos($('#ph'));
+  const r = await api('tickets', {customer_id:$('#cid').value || null, customer_name:$('#cn').value, customer_phone:$('#cp').value,
+    serial:$('#serial').value, device_type:$('#dt').value, brand:$('#br').value, model:$('#md').value,
+    accessories:$('#acc').value, complaint:$('#cmp').value, photos});
+  go('ticket', r.id);
+}
+
+// ---------- ticket
+async function viewTicket(id) {
+  const t = await api('tickets/' + id);
+  const canWork = isMgr() || (ME.role === 'technician' && t.assigned_to === ME.id);
+  const techs = USERS.filter(u => u.active && ['technician','manager','admin'].includes(u.role));
+  const thumbs = stage => t.photos.filter(p => p.stage === stage).map(p => `<img src="/photos/${p.file}" onclick="window.open(this.src)">`).join('') || '<span class="muted">مفيش صور</span>';
+  $('#view').innerHTML = `
+  <div class="card"><div class="row"><h2 style="margin:0">تذكرة #${t.id}</h2>${badge(t.status)}
+    <span style="margin-inline-start:auto"></span><button class="pri" onclick="printLabel(${t.id})">🖨 طباعة استيكر</button>
+    <button onclick="printZebra(${t.id})">إرسال للزيبرا مباشرة (شبكة)</button></div>
+    <div class="grid" style="margin-top:12px">
+      <div><span class="muted">السيريال</span><br><b>${esc(t.serial)}</b></div>
+      <div><span class="muted">الجهاز</span><br>${esc([t.device_type,t.brand,t.model].filter(Boolean).join(' ')) || '—'}</div>
+      <div><span class="muted">العميل</span><br>${esc(t.customer_name)} ${esc(t.customer_phone)}</div>
+      <div><span class="muted">دخل في</span><br>${t.received_at}</div>
+      <div><span class="muted">استلمه</span><br>${esc(t.received_by_name)}</div>
+      <div><span class="muted">الفني</span><br>${esc(t.assigned_to_name) || '<span class="muted">لسه ماتعيّنش</span>'}</div>
+      <div><span class="muted">الإكسسوارات</span><br>${esc(t.accessories) || '—'}</div>
+      <div><span class="muted">إجمالي قطع الغيار</span><br><b>${t.total.toFixed(2)}</b></div></div>
+    <p><span class="muted">العطل حسب العميل:</span> ${esc(t.complaint) || '—'}</p>
+    ${t.other_visits.length ? `<p class="muted">زيارات سابقة لنفس السيريال: ${t.other_visits.map(v=>`<a href="#" onclick="go('ticket',${v.id});return false">#${v.id}</a> (${v.received_at.slice(0,10)})`).join('، ')}</p>` : ''}
+  </div>
+
+  <div class="card"><div class="row">
+    ${isMgr() ? `<label style="margin:0">تعيين فني<select id="as">${'<option value="">— اختار —</option>' + techs.map(u=>`<option value="${u.id}" ${u.id===t.assigned_to?'selected':''}>${esc(u.full_name)}</option>`).join('')}</select></label>
+      <button onclick="assign(${t.id})">تعيين</button>` : ''}
+    ${canWork ? `<label style="margin:0">تغيير الحالة<select id="ns">${Object.entries(ST).filter(([k])=>k!=='delivered'||ME.role!=='technician').map(([k,v])=>`<option value="${k}" ${k===t.status?'selected':''}>${v}</option>`).join('')}</select></label>
+      <input id="snote" placeholder="ملاحظة (اختياري) - مثلاً: محتاج موافقة على تغيير الشاشة 1500ج" style="flex:1;min-width:220px">
+      <button onclick="setStatus(${t.id})">حفظ الحالة</button>` : ''}
+  </div></div>
+
+  <div class="card"><h3>الصيانة اللي اتعملت</h3>
+    <table><tbody>${t.notes.map(n=>`<tr><td style="width:140px" class="muted">${n.created_at.slice(0,16)}<br>${esc(n.user_name)}</td><td><b>${n.kind==='inspection'?'فحص':'صيانة'}:</b> ${esc(n.text)}</td></tr>`).join('') || '<tr><td class="muted">لسه مفيش</td></tr>'}</tbody></table>
+    ${canWork ? `<div class="row" style="margin-top:8px"><select id="nk" style="width:120px"><option value="maintenance">صيانة</option><option value="inspection">فحص</option></select>
+      <input id="nt" placeholder="اكتب اللي اتعمل في الجهاز" style="flex:1"><button onclick="addNote(${t.id})">إضافة</button></div>` : ''}
+
+    <h3>قطع الغيار</h3>
+    <table><thead><tr><th>القطعة</th><th>السيريال</th><th>الكمية</th><th>السعر</th><th>ركّبها</th><th></th></tr></thead><tbody>
+      ${t.parts.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.serial)||'—'}</td><td>${p.qty}</td><td>${p.price.toFixed(2)}</td><td class="muted">${esc(p.user_name)}<br>${p.created_at.slice(0,16)}</td>
+        <td>${isMgr()?`<button onclick="delPart(${t.id},${p.id})">حذف</button>`:''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">مفيش قطع غيار</td></tr>'}
+    </tbody></table>
+    ${canWork ? `<div class="row" style="margin-top:8px"><input id="pn" placeholder="اسم القطعة *" style="flex:2;min-width:160px">
+      <input id="psr" placeholder="سيريال القطعة (لو ليها)" style="flex:2;min-width:160px"><input id="pq" type="number" value="1" min="1" style="width:80px" title="الكمية">
+      <input id="pp" type="number" min="0" step="0.01" placeholder="السعر" style="width:110px"><button onclick="addPart(${t.id})">إضافة قطعة</button></div>` : ''}
+  </div>
+
+  <div class="card"><h3>صور الاستلام</h3><div class="thumbs">${thumbs('intake')}</div>
+    <h3>صور الصيانة / بعد الإصلاح</h3><div class="thumbs">${thumbs('repair')}</div>
+    ${canWork || ME.role==='reception' ? `<div class="row" style="margin-top:10px"><select id="pst" style="width:170px"><option value="repair">صور صيانة</option><option value="intake">صور استلام</option></select>
+      <input type="file" id="ph2" accept="image/*" multiple style="width:auto"><button onclick="addPhotos(${t.id})">رفع الصور</button></div>` : ''}
+  </div>
+
+  <div class="card"><h3>سجل التذكرة</h3><table><tbody>${t.history.map(h=>`<tr><td style="width:150px" class="muted">${h.created_at.slice(0,16)}</td><td>${esc(h.user_name)}</td><td>${esc(histText(h))}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function histText(h) {
+  const a = {created:'فتح التذكرة', assigned:'تعيين فني', status:'تغيير حالة', note:'إضافة شغل', part_added:'تركيب قطعة',
+    part_removed:'حذف قطعة', photos:'رفع صور', label_printed:'طباعة استيكر'}[h.action] || h.action;
+  let d = h.detail || '';
+  d = d.replace(/\bmaintenance\b/, 'صيانة').replace(/\binspection\b/, 'فحص').replace(/(\d+) photos/, '$1 صور')
+       .replace(/(\d+) repair$/, '$1 صيانة').replace(/(\d+) intake$/, '$1 استلام');
+  if (h.action === 'status') d = d.replace(/^(\w+) -> (\w+)/, (_, x, y) => `${ST[x]||x} ← ${ST[y]||y}`);
+  return d ? `${a}: ${d}` : a;
+}
+async function assign(id) { if (!$('#as').value) return; await api(`tickets/${id}/assign`, {user_id:+$('#as').value}); go('ticket', id); }
+async function setStatus(id) { await api(`tickets/${id}/status`, {status:$('#ns').value, note:$('#snote').value}); go('ticket', id); }
+async function addNote(id) { await api(`tickets/${id}/notes`, {kind:$('#nk').value, text:$('#nt').value}); go('ticket', id); }
+async function addPart(id) { await api(`tickets/${id}/parts`, {name:$('#pn').value, serial:$('#psr').value, qty:$('#pq').value, price:$('#pp').value}); go('ticket', id); }
+async function delPart(id, pid) { if (confirm('حذف القطعة دي؟')) { await api(`tickets/${id}/parts_delete`, {id:pid}); go('ticket', id); } }
+async function addPhotos(id) { const photos = await readPhotos($('#ph2')); if (!photos.length) return; await api(`tickets/${id}/photos`, {stage:$('#pst').value, photos}); go('ticket', id); }
+async function printZebra(id) { await api(`tickets/${id}/print_zebra`, {}); alert('اتبعت للطابعة'); }
+
+// Label via the Windows Zebra driver: page size 50x30 mm, opens the browser print dialog.
+async function printLabel(id) {
+  const t = await api('tickets/' + id);
+  $('#label').innerHTML = `<div class="big">#${t.id} &nbsp; ${esc(t.serial)}</div>${code128(t.serial)}
+    <div dir="auto">${esc(t.customer_name)}</div><div>IN: ${t.received_at.slice(0,16)}</div>
+    <div dir="auto">${esc(t.assigned_to_name || '-')}</div>`;
+  window.print();
+}
+
+// Code 128-B barcode as SVG (printable ASCII only).
+function code128(text) {
+  const P = '212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112'.split(' ');
+  const s = [...String(text)].filter(c => c >= ' ' && c <= '~');
+  const codes = [104, ...s.map(c => c.charCodeAt(0) - 32)];
+  codes.push(codes.reduce((a, c, i) => a + c * (i || 1), 0) % 103, 106);
+  let x = 10, bars = '';
+  for (const c of codes) [...P[c]].forEach((w, i) => { if (i % 2 === 0) bars += `<rect x="${x}" y="0" width="${w}" height="40"/>`; x += +w; });
+  return `<svg viewBox="0 0 ${x + 10} 40" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+// ---------- users & settings
+async function viewUsers() {
+  USERS = await api('users'); const s = await api('settings');
+  $('#view').innerHTML = `<div class="card"><h2>المستخدمين</h2><table><thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>الحالة</th><th></th></tr></thead><tbody>
+    ${USERS.map(u=>`<tr><td>${esc(u.full_name)}</td><td>${esc(u.username)}</td><td>${ROLE[u.role]}</td><td>${u.active?'نشط':'موقوف'}</td>
+      <td><button onclick='editUser(${JSON.stringify(u)})'>تعديل</button></td></tr>`).join('')}</tbody></table>
+    <h3 id="uh">إضافة مستخدم</h3><input type="hidden" id="uid"><div class="grid">
+      <label>الاسم بالكامل<input id="ufn"></label><label>اسم الدخول<input id="uun"></label>
+      <label>الدور<select id="ur">${Object.entries(ROLE).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+      <label>كلمة المرور<input id="upw" type="password" placeholder="سيبها فاضية في التعديل لو مش هتغيرها"></label>
+      <label>نشط<select id="ua"><option value="1">نشط</option><option value="0">موقوف</option></select></label></div>
+    <button class="pri" onclick="saveUser()">حفظ</button> <button onclick="go('users')">جديد</button></div>
+  <div class="card"><h2>تغيير كلمة المرور بتاعتي</h2><div class="grid"><label>القديمة<input id="po" type="password"></label><label>الجديدة<input id="pnw" type="password"></label></div>
+    <button onclick="changePw()">تغيير</button></div>
+  <div class="card"><h2>الطابعة</h2><p class="muted">لو الزيبرا متوصلة USB: استخدم زرار "طباعة استيكر" واختار طابعة الزيبرا ومقاس 50×30 مم.
+    لو متوصلة بالشبكة: اكتب الـ IP هنا وهتقدر تبعت مباشرة.</p>
+    <div class="row"><input id="pip" value="${esc(s.printer_ip)}" placeholder="192.168.1.50" style="width:220px"><button onclick="savePrinter()">حفظ</button></div></div>`;
+}
+function editUser(u) { $('#uh').textContent = 'تعديل: ' + u.full_name; $('#uid').value = u.id; $('#ufn').value = u.full_name; $('#uun').value = u.username; $('#uun').disabled = true; $('#ur').value = u.role; $('#ua').value = u.active ? 1 : 0; $('#upw').value = ''; }
+async function saveUser() { await api('users', {id:$('#uid').value || null, full_name:$('#ufn').value, username:$('#uun').value, role:$('#ur').value, password:$('#upw').value, active:$('#ua').value === '1'}); go('users'); }
+async function changePw() { await api('me/password', {old:$('#po').value, new:$('#pnw').value}); alert('اتغيرت'); go('users'); }
+async function savePrinter() { await api('settings', {printer_ip:$('#pip').value}); alert('اتحفظ'); }
+
+boot();
+</script>
+</body>
+</html>

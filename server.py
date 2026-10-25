@@ -25,7 +25,7 @@ KEEP_BACKUPS = 30
 STATUSES = ["received", "assigned", "in_repair", "waiting_customer", "waiting_parts", "repaired", "delivered", "rejected"]
 OPEN_STATUSES = ["received", "assigned", "in_repair", "waiting_customer", "waiting_parts"]
 INTAKE_TYPES = ["setup", "repair", "warranty", "inspection", "maintenance"]
-ROLES = ["admin", "manager", "reception", "technician"]
+ROLES = ["admin", "manager", "technician"]
 PAY_METHODS = ["cash", "card", "transfer", "wallet"]
 SETTING_KEYS = {"printer_ip": 100, "company_name": 100, "company_sub": 150, "company_phone": 100,
                 "company_address": 300, "receipt_terms": 3000, "warranty_days": 10, "due_days": 10,
@@ -207,6 +207,7 @@ def init_db():
         for k, v in DEFAULT_SETTINGS.items():
             d.run("INSERT INTO settings VALUES(%s,%s) ON CONFLICT DO NOTHING", (k, v))
         migrate_sqlite(d)
+        d.run("UPDATE users SET role='technician' WHERE role='reception'")
         # accounts still on the old default password must change it at next sign-in
         for u in d.all("SELECT id, pw_hash FROM users WHERE NOT must_change_pw"):
             if check_pw("admin", u["pw_hash"]):
@@ -557,7 +558,8 @@ class Handler(BaseHTTPRequestHandler):
         need(user, 401, "login")
         role = user["role"]
         is_mgr = role in ("admin", "manager")
-        is_front = role in ("admin", "manager", "reception")
+        is_front = is_mgr
+        can_receive = is_mgr or role == "technician"
 
         if parts == ["logout"]:
             d.run("DELETE FROM sessions WHERE user_id=%s", (user["id"],))
@@ -641,7 +643,8 @@ class Handler(BaseHTTPRequestHandler):
 
         # ---- dashboard
         if parts == ["dashboard"]:
-            mine = "" if role != "technician" else f" AND assigned_to={int(user['id'])}"
+            mine = "" if role != "technician" else (
+                f" AND (assigned_to={int(user['id'])} OR received_by={int(user['id'])})")
             by_status = {r["status"]: r["n"] for r in d.all(f"SELECT status, COUNT(*) n FROM tickets WHERE TRUE{mine} GROUP BY status")}
             today = datetime.date.today()
             res = {"by_status": by_status,
@@ -694,10 +697,41 @@ class Handler(BaseHTTPRequestHandler):
             dev["open_ticket"] = next((v["id"] for v in visits if v["status"] in OPEN_STATUSES), None)
             return self.send_json(200, dev)
 
+        if parts == ["intake", "device"] and method == "GET":
+            need(role == "technician", 403, "forbidden")
+            serial = q.get("serial", "").strip()
+            need(serial, 400, "missing:serial")
+            dev = d.one("""SELECT dv.id, dv.device_type, dv.brand, dv.model, dv.customer_id,
+                                  dv.first_seen_at, dv.first_intake_type, c.name customer_name, c.phone customer_phone
+                           FROM devices dv LEFT JOIN customers c ON c.id=dv.customer_id
+                           WHERE dv.serial_key=%s""", (serial_key(serial),))
+            need(dev, 404, "device_not_found")
+            recent = d.one("""SELECT status,received_at FROM tickets
+                              WHERE device_id=%s ORDER BY id DESC LIMIT 1""", (dev["id"],))
+            warranty_until = d.val("""SELECT MAX(warranty_until) FROM tickets
+                                      WHERE device_id=%s AND status='delivered'""", (dev["id"],))
+            open_ticket = d.one("""SELECT id FROM tickets WHERE device_id=%s AND status = ANY(%s)
+                                  AND (received_by=%s OR assigned_to=%s) ORDER BY id DESC LIMIT 1""",
+                                (dev["id"], OPEN_STATUSES, user["id"], user["id"]))
+            has_open_ticket = bool(d.one("SELECT 1 FROM tickets WHERE device_id=%s AND status = ANY(%s)",
+                                         (dev["id"], OPEN_STATUSES)))
+            dev["visit_count"] = d.val("SELECT COUNT(*) FROM tickets WHERE device_id=%s", (dev["id"],))
+            dev["recent_visit"] = recent
+            dev["warranty_until"] = warranty_until
+            dev["in_warranty"] = bool(dev["warranty_until"] and dev["warranty_until"] >= datetime.date.today())
+            dev["open_ticket"] = open_ticket["id"] if open_ticket else None
+            dev["has_open_ticket"] = has_open_ticket
+            return self.send_json(200, dev)
+
         # ---- customers
         if parts == ["customers"] and method == "GET":
-            need(role != "technician", 403, "forbidden")
             s = f"%{q.get('q', '')}%"
+            if role == "technician":
+                need(len(q.get("q", "").strip()) >= 2, 400, "search_too_short")
+                return self.send_json(200, d.all("""SELECT c.id,c.name,c.phone,c.phone2,c.company,
+                    (SELECT COUNT(*) FROM tickets t WHERE t.customer_id=c.id AND t.received_by=%s) tickets
+                    FROM customers c WHERE c.name ILIKE %s OR c.phone ILIKE %s OR c.phone2 ILIKE %s OR c.company ILIKE %s
+                    ORDER BY c.id DESC LIMIT 20""", (user["id"], s, s, s, s)))
             return self.send_json(200, d.all("""SELECT c.*, (SELECT COUNT(*) FROM tickets t WHERE t.customer_id=c.id) tickets
                 FROM customers c WHERE c.name ILIKE %s OR c.phone ILIKE %s OR c.phone2 ILIKE %s OR c.company ILIKE %s
                 ORDER BY c.id DESC LIMIT %s""", (s, s, s, s, 20 if q.get("q") else 200)))
@@ -762,7 +796,7 @@ class Handler(BaseHTTPRequestHandler):
             sql = TICKET_SELECT + " WHERE TRUE"
             args = {"open": OPEN_STATUSES}
             if role == "technician":
-                sql += " AND t.assigned_to=%(me)s"
+                sql += " AND (t.assigned_to=%(me)s OR t.received_by=%(me)s)"
                 args["me"] = user["id"]
             st = q.get("status", "")
             if st == "open":
@@ -796,7 +830,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"total": total, "rows": rows})
 
         if parts == ["tickets"] and method == "POST":
-            need(is_front, 403, "forbidden")
+            need(can_receive, 403, "forbidden")
             serial = text(body, "serial", True, 100)
             itype = text(body, "intake_type") or "repair"
             need(itype in INTAKE_TYPES, 400, "bad_type")
@@ -813,7 +847,8 @@ class Handler(BaseHTTPRequestHandler):
             ts = now()
             open_t = d.one("""SELECT t.id FROM tickets t JOIN devices dv ON dv.id=t.device_id
                               WHERE dv.serial_key=%s AND t.status = ANY(%s)""", (serial_key(serial), OPEN_STATUSES))
-            need(not open_t or body.get("force"), 409, f"device_open:{open_t['id'] if open_t else ''}")
+            if open_t and not (is_mgr and body.get("force")):
+                raise ApiError(409, f"device_open:{open_t['id']}" if is_mgr else "device_already_open")
             dev = upsert_device(d, serial, info, cid, itype, ts)
             last = d.one("""SELECT id, warranty_until FROM tickets WHERE device_id=%s AND status='delivered'
                             ORDER BY closed_at DESC NULLS LAST LIMIT 1""", (dev["id"],))
@@ -842,7 +877,9 @@ class Handler(BaseHTTPRequestHandler):
             tid = int(parts[1])
             t = ticket_view(d, tid)
             need(t, 404, "not_found")
-            need(role != "technician" or t["assigned_to"] == user["id"], 403, "forbidden")
+            if role == "technician":
+                can_view = t["assigned_to"] == user["id"] or t["received_by"] == user["id"]
+                need(can_view if method == "GET" else t["assigned_to"] == user["id"], 403, "forbidden")
             sub = parts[2] if len(parts) > 2 else ""
 
             if sub == "" and method == "GET":

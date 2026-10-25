@@ -297,7 +297,7 @@ const ST_HEX = {received:'#9ca3af', assigned:'#2563eb', in_repair:'#0891b2', wai
 const OPEN = ['received','assigned','in_repair','waiting_customer','waiting_parts'];
 const TYPES = {setup:'تهيئة أول مرة', repair:'صيانة', warranty:'ضمان', inspection:'فحص', maintenance:'صيانة دورية'};
 const TYPE_C = {setup:'teal', repair:'blue', warranty:'pink', inspection:'gray', maintenance:'purple'};
-const ROLE = {admin:'مدير النظام', manager:'مدير الورشة', reception:'استقبال', technician:'فني صيانة'};
+const ROLE = {admin:'مدير النظام', manager:'مدير الورشة', technician:'فني صيانة'};
 const PAY = {cash:'كاش', card:'فيزا', transfer:'تحويل بنكي', wallet:'محفظة إلكترونية'};
 const KIND = {maintenance:'صيانة', inspection:'فحص', setup:'تهيئة', note:'ملاحظة'};
 const APPROVAL = {none:'', pending:'مستني رد العميل', approved:'العميل وافق', rejected:'العميل رفض'};
@@ -309,6 +309,7 @@ const ERR = {bad_login:'اسم المستخدم أو كلمة المرور غل�
   bad_number:'الرقم مش مظبوط', ticket_closed:'التذكرة دي مقفولة', not_repaired:'الجهاز لسه مش جاهز للتسليم', device_not_found:'السيريال ده مادخلش الورشة قبل كده',
   backup_failed:'النسخة الاحتياطية فشلت', db_down:'قاعدة البيانات مش شغالة - شغّل start.bat تاني', cant_demote_self:'مينفعش توقف حسابك أو تشيل صلاحية المدير منه',
   bad_date:'التاريخ مش مظبوط', not_found:'مش موجود', no_photos:'اختار صور الأول', too_large:'الملفات كبيرة أوي',
+  device_already_open:'الجهاز موجود بالفعل في الورشة — راجع مدير الورشة', search_too_short:'اكتب حرفين على الأقل للبحث',
   short_password_admin:'كلمة مرور مدير النظام لازم 6 حروف على الأقل', same_password:'كلمة المرور الجديدة لازم تبقى مختلفة عن القديمة',
   must_change_pw:'لازم تغيّر كلمة المرور الأول', confirm_mismatch:'رقم التذكرة اللي كتبته مش مطابق', already_setup:'البرنامج متجهّز قبل كده — سجّل دخول'};
 const IC = {
@@ -337,8 +338,9 @@ const chip = (txt, c, extra = '') => `<span class="chip c-${c} ${extra}">${esc(t
 const stChip = s => chip(ST[s] || s, ST_C[s] || 'gray');
 const typeChip = t => chip(TYPES[t] || t, TYPE_C[t] || 'gray', 'nodot');
 const isMgr = () => ['admin','manager'].includes(ME.role);
-const isFront = () => ['admin','manager','reception'].includes(ME.role);
+const isFront = () => isMgr();
 const isTech = () => ME.role === 'technician';
+const canReceive = () => isMgr() || isTech();
 const fmtD = s => s ? String(s).slice(0, 16) : '—';
 const day = s => s ? String(s).slice(0, 10) : '—';
 const cur = () => CFG.currency || 'ج.م';
@@ -467,7 +469,7 @@ async function boot() {
   try { ME = await api('me'); } catch { return; }
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#me-name').textContent = ME.full_name; $('#me-role').textContent = ROLE[ME.role];
-  $('#top-new').classList.toggle('hidden', !isFront());
+  $('#top-new').classList.toggle('hidden', !canReceive());
   IDLE.start();
   if (ME.must_change_pw) return forcePwChange();
   [USERS, CFG] = await Promise.all([api('users'), api('settings')]);
@@ -490,7 +492,7 @@ function forcePwChange() {
 }
 function buildNav() {
   const items = [['dashboard','لوحة التحكم','dash'], ['tickets', isTech() ? 'أجهزتي' : 'التذاكر','list']];
-  if (isFront()) items.push(['new','استلام جهاز','plus']);
+  if (canReceive()) items.push(['new','استلام جهاز','plus']);
   if (!isTech()) items.push(['device','ملف الجهاز (بحث بالسيريال)','dev'], ['customers','العملاء','users']);
   if (isMgr()) items.push(['reports','التقارير','chart']);
   if (ME.role === 'admin') items.push(['settings','الإعدادات والمستخدمين','cog']);
@@ -537,7 +539,7 @@ async function viewDash() {
   <div class="page-h"><div><h1>أهلاً ${esc(ME.full_name)} 👋</h1><div class="sub">${new Date().toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</div></div>
 </div>
   <div class="grid g4" style="margin-bottom:16px">
-    ${k(isTech() ? 'أجهزتي المفتوحة' : 'أجهزة جوه الورشة', d.open, '#000', 'tickets//open')}
+    ${k(isTech() ? 'استلاماتي وأجهزتي المعيّنة' : 'أجهزة جوه الورشة', d.open, '#000', 'tickets//open')}
     ${k('متأخرة عن ميعادها', d.overdue, 'var(--red)', 'tickets//overdue')}
     ${k('مستعجلة', d.urgent, 'var(--pink)', 'tickets//urgent')}
     ${k('مستنية موافقة العميل', d.waiting_approval, 'var(--amber)', 'tickets//approval')}
@@ -586,8 +588,8 @@ async function viewTickets(arg) {
   if (preset === 'approval') LIST.approval = 'pending';
   const techs = USERS.filter(u => ['technician','manager','admin'].includes(u.role));
   $('#view').innerHTML = `
-  <div class="page-h"><h1>${isTech() ? 'الأجهزة المعيّنة ليا' : 'التذاكر'}</h1><span class="sp"></span>
-    ${isFront() ? `<button class="btn pri" onclick="nav('new')">${icon('plus')} استلام جهاز</button>` : ''}</div>
+  <div class="page-h"><h1>${isTech() ? 'استلاماتي والأجهزة المعيّنة ليا' : 'التذاكر'}</h1><span class="sp"></span>
+    ${canReceive() ? `<button class="btn pri" onclick="nav('new')">${icon('plus')} استلام جهاز</button>` : ''}</div>
   <div class="card">
     <div class="filters">
       <input id="fq" placeholder="سيريال، رقم تذكرة، عميل، موبايل، ماركة..." style="flex:1;min-width:220px" value="${esc(LIST.q)}">
@@ -624,7 +626,7 @@ async function loadTickets() {
 // ================= new intake
 let NEW_PHOTOS = [];
 async function viewNew() {
-  if (!isFront()) return nav('dashboard');
+  if (!canReceive()) return nav('dashboard');
   NEW_PHOTOS = [];
   const techs = USERS.filter(u => u.active && ['technician','manager','admin'].includes(u.role));
   $('#view').innerHTML = `
@@ -700,19 +702,22 @@ function pickCust(c) {
 async function lookupSerial() {
   const s = $('#n-serial').value.trim(); const box = $('#n-dev');
   if (!s) { box.innerHTML = ''; return; }
-  const dev = await api('devices/' + encodeURIComponent(s)).catch(() => null);
+  const dev = await api(isTech() ? 'intake/device?serial=' + encodeURIComponent(s) : 'devices/' + encodeURIComponent(s)).catch(() => null);
   if (!dev) {
     box.innerHTML = `<div class="alert new">${icon('star')}<div><b>أول مرة الجهاز ده يدخل الورشة.</b> لو جاي للتهيئة اختار "تهيئة أول مرة".</div></div>`;
     document.querySelector('input[name=itype][value=setup]').checked = true;
     return;
   }
-  const v = dev.visits;
+  const v = isTech() ? null : dev.visits;
+  const visitCount = isTech() ? dev.visit_count : v.length;
+  const recentVisit = isTech() ? dev.recent_visit : v[0];
   box.innerHTML = `
-    ${dev.open_ticket ? `<div class="alert err">${icon('warn')}<div><b>الجهاز ده جوه الورشة دلوقتي</b> في تذكرة <a href="#/ticket/${dev.open_ticket}">#${dev.open_ticket}</a> ومتقفلتش.</div></div>` : ''}
+    ${(dev.has_open_ticket ?? !!dev.open_ticket) ? `<div class="alert err">${icon('warn')}<div><b>الجهاز ده جوه الورشة دلوقتي</b>${dev.open_ticket ? ` في تذكرة <a href="#/ticket/${dev.open_ticket}">#${dev.open_ticket}</a>` : ''} ومتقفلتش.${isTech() && !dev.open_ticket ? ' راجع مدير الورشة قبل تسجيل استلام جديد.' : ''}</div></div>` : ''}
     ${dev.in_warranty ? `<div class="alert ok">${icon('shield')}<div><b>الجهاز لسه في الضمان</b> لحد <span class="num">${dev.warranty_until}</span> — اختار نوع الدخول "ضمان".</div></div>` : ''}
-    <div class="alert info">${icon('info')}<div>الجهاز ده دخل الورشة <b>${v.length}</b> مرة قبل كده. أول دخول: <b class="num">${day(dev.first_seen_at)}</b> (${TYPES[dev.first_intake_type] || dev.first_intake_type}).
-      آخر مرة: <a href="#/ticket/${v[0].id}">#${v[0].id}</a> — ${esc(v[0].complaint || '').slice(0, 60)} — ${ST[v[0].status]}.
-      <a href="#/device/${encodeURIComponent(s)}" target="_blank">افتح ملف الجهاز ↗</a></div></div>`;
+    <div class="alert info">${icon('info')}<div>الجهاز ده دخل الورشة <b>${visitCount}</b> مرة قبل كده. أول دخول: <b class="num">${day(dev.first_seen_at)}</b> (${TYPES[dev.first_intake_type] || dev.first_intake_type}).
+      آخر مرة: ${isTech() ? `<b>${day(recentVisit.received_at)}</b> — ${ST[recentVisit.status]}` :
+        `<a href="#/ticket/${recentVisit.id}">#${recentVisit.id}</a> — ${esc(recentVisit.complaint || '').slice(0, 60)} — ${ST[recentVisit.status]}`}.
+      ${isTech() ? '' : `<a href="#/device/${encodeURIComponent(s)}" target="_blank">افتح ملف الجهاز ↗</a>`}</div></div>`;
   if (dev.in_warranty) document.querySelector('input[name=itype][value=warranty]').checked = true;
   if (!$('#n-dt').value) $('#n-dt').value = dev.device_type || '';
   if (!$('#n-br').value) $('#n-br').value = dev.brand || '';
@@ -1128,7 +1133,7 @@ async function viewSettings() {
   $('#view').innerHTML = `<div class="page-h"><h1>الإعدادات والمستخدمين</h1></div>
   <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>المستخدمين</h3><span class="sp"></span><button class="btn sm pri" onclick="mUser()">+ مستخدم جديد</button></div>
     <div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>الموبايل</th><th>الحالة</th><th></th></tr></thead><tbody>
-    ${USERS.map(u => `<tr><td><b>${esc(u.full_name)}</b></td><td class="mono">${esc(u.username)}</td><td>${chip(ROLE[u.role], {admin:'black', manager:'purple', reception:'blue', technician:'cyan'}[u.role], 'nodot')}</td>
+    ${USERS.map(u => `<tr><td><b>${esc(u.full_name)}</b></td><td class="mono">${esc(u.username)}</td><td>${chip(ROLE[u.role], {admin:'black', manager:'purple', technician:'cyan'}[u.role], 'nodot')}</td>
       <td class="num">${esc(u.phone) || '—'}</td><td>${u.active ? chip('نشط', 'green') : chip('موقوف', 'red')}</td>
       <td><button class="btn sm" onclick='mUser(${JSON.stringify(u).replace(/'/g, "&#39;")})'>تعديل</button></td></tr>`).join('')}</tbody></table></div></div>
   <div class="grid g2">

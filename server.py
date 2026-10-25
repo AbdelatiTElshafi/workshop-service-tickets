@@ -57,6 +57,9 @@ CREATE TABLE IF NOT EXISTS work_notes(id SERIAL PRIMARY KEY, ticket_id INTEGER N
 CREATE TABLE IF NOT EXISTS parts(id SERIAL PRIMARY KEY, ticket_id INTEGER NOT NULL REFERENCES tickets(id),
   name TEXT NOT NULL, serial TEXT, price NUMERIC(12,2) NOT NULL DEFAULT 0, qty INTEGER NOT NULL DEFAULT 1,
   user_id INTEGER NOT NULL REFERENCES users(id), created_at TIMESTAMP NOT NULL);
+CREATE TABLE IF NOT EXISTS service_items(id SERIAL PRIMARY KEY, ticket_id INTEGER NOT NULL REFERENCES tickets(id),
+  name TEXT NOT NULL, price NUMERIC(12,2) NOT NULL DEFAULT 0, user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMP NOT NULL);
 CREATE TABLE IF NOT EXISTS photos(id SERIAL PRIMARY KEY, ticket_id INTEGER NOT NULL REFERENCES tickets(id),
   stage TEXT NOT NULL, file TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id), created_at TIMESTAMP NOT NULL);
 CREATE TABLE IF NOT EXISTS history(id SERIAL PRIMARY KEY, ticket_id INTEGER NOT NULL REFERENCES tickets(id),
@@ -102,6 +105,7 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS ix_customers_phone ON customers(phone)",
     "CREATE INDEX IF NOT EXISTS ix_history_ticket ON history(ticket_id)",
     "CREATE INDEX IF NOT EXISTS ix_parts_ticket ON parts(ticket_id)",
+    "CREATE INDEX IF NOT EXISTS ix_service_items_ticket ON service_items(ticket_id)",
     "CREATE INDEX IF NOT EXISTS ix_notes_ticket ON work_notes(ticket_id)",
     "CREATE INDEX IF NOT EXISTS ix_photos_ticket ON photos(ticket_id)",
     "CREATE INDEX IF NOT EXISTS ix_payments_ticket ON payments(ticket_id)",
@@ -324,7 +328,7 @@ def delete_ticket(d, t):
     """Remove a ticket and everything under it; keep the device registry consistent."""
     tid = t["id"]
     files = [r["file"] for r in d.all("SELECT file FROM photos WHERE ticket_id=%s", (tid,))]
-    for table in ("payments", "history", "parts", "work_notes", "photos"):
+    for table in ("payments", "history", "service_items", "parts", "work_notes", "photos"):
         d.run(f"DELETE FROM {table} WHERE ticket_id=%s", (tid,))
     d.run("UPDATE tickets SET parent_ticket_id=NULL WHERE parent_ticket_id=%s", (tid,))
     d.run("DELETE FROM tickets WHERE id=%s", (tid,))
@@ -345,16 +349,33 @@ def ticket_view(d, tid):
 
 def ticket_money(d, t):
     parts = d.val("SELECT COALESCE(SUM(price*qty),0) FROM parts WHERE ticket_id=%s", (t["id"],))
+    services = d.val("SELECT COALESCE(SUM(price),0) FROM service_items WHERE ticket_id=%s", (t["id"],))
     paid = d.val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE ticket_id=%s", (t["id"],))
-    total = parts + t["labor"] - t["discount"]
-    return {"parts_total": parts, "total": total, "paid": paid, "balance": total - paid}
+    labor_total = t["labor"] + services
+    total = parts + labor_total - t["discount"]
+    return {"parts_total": parts, "service_total": services, "labor_total": labor_total,
+            "total": total, "paid": paid, "balance": total - paid}
+
+
+def refresh_ticket_quote(d, ticket):
+    parts = d.val("SELECT COALESCE(SUM(price*qty),0) FROM parts WHERE ticket_id=%s", (ticket["id"],))
+    services = d.val("SELECT COALESCE(SUM(price),0) FROM service_items WHERE ticket_id=%s", (ticket["id"],))
+    estimate = parts + services + ticket["labor"] - ticket["discount"]
+    if ticket["status"] in ("delivered", "rejected"):
+        d.run("UPDATE tickets SET estimate=%s WHERE id=%s", (estimate, ticket["id"]))
+    else:
+        d.run("""UPDATE tickets SET estimate=%s, approval='pending', status='waiting_customer'
+                 WHERE id=%s""", (estimate, ticket["id"]))
+    return estimate
 
 
 def redact_ticket_finances(t):
-    for key in ("estimate", "labor", "discount", "parts_total", "total", "paid", "balance", "payments"):
+    for key in ("estimate", "labor", "discount", "parts_total", "service_total", "labor_total", "total", "paid", "balance", "payments"):
         t.pop(key, None)
     for part in t.get("parts", []):
         part.pop("price", None)
+    for service in t.get("services", []):
+        service.pop("price", None)
     for entry in t.get("history", []):
         if entry.get("action") in ("diagnosis", "charges", "payment"):
             entry["detail"] = ""
@@ -775,7 +796,7 @@ class Handler(BaseHTTPRequestHandler):
                         COUNT(t.id) FILTER (WHERE t.status = ANY(%s)) open,
                         ROUND(AVG(EXTRACT(EPOCH FROM (t.closed_at - t.received_at))/86400) FILTER (WHERE t.status='delivered')::numeric, 1) avg_days,
                         COALESCE(SUM((SELECT SUM(p.price*p.qty) FROM parts p WHERE p.ticket_id=t.id)),0) parts_value,
-                        COALESCE(SUM(t.labor),0) labor
+                        COALESCE(SUM(t.labor),0) + COALESCE(SUM((SELECT SUM(si.price) FROM service_items si WHERE si.ticket_id=t.id)),0) labor
                         FROM users u JOIN tickets t ON t.assigned_to=u.id AND t.received_at >= %s AND t.received_at < %s
                         GROUP BY u.id ORDER BY done DESC""", (OPEN_STATUSES, frm, to))})
             if parts == ["reports", "export"]:
@@ -789,7 +810,7 @@ class Handler(BaseHTTPRequestHandler):
                     m = ticket_money(d, t)
                     w.writerow([t["id"], t["serial"], t["device_type"], t["brand"], t["model"], t["intake_type"], t["customer_name"],
                                 t["customer_phone"], t["status"], t["assigned_to_name"] or "", to_json(t["received_at"]),
-                                to_json(t["closed_at"]) if t["closed_at"] else "", m["parts_total"], t["labor"], t["discount"], m["total"], m["paid"]])
+                                to_json(t["closed_at"]) if t["closed_at"] else "", m["parts_total"], m["labor_total"], t["discount"], m["total"], m["paid"]])
                 return self.send_bytes(200, ("﻿" + out.getvalue()).encode("utf-8"), "text/csv; charset=utf-8",
                                        {"Content-Disposition": f'attachment; filename="tickets_{q.get("from", "")}_{q.get("to", "")}.csv"'})
 
@@ -888,6 +909,8 @@ class Handler(BaseHTTPRequestHandler):
                 t["photos"] = d.all("SELECT id,stage,file,created_at FROM photos WHERE ticket_id=%s ORDER BY id", (tid,))
                 t["parts"] = d.all("""SELECT p.*,u.full_name user_name FROM parts p JOIN users u ON u.id=p.user_id
                     WHERE ticket_id=%s ORDER BY p.id""", (tid,))
+                t["services"] = d.all("""SELECT s.*,u.full_name user_name FROM service_items s JOIN users u ON u.id=s.user_id
+                    WHERE ticket_id=%s ORDER BY s.id""", (tid,))
                 t["notes"] = d.all("""SELECT n.*,u.full_name user_name FROM work_notes n JOIN users u ON u.id=n.user_id
                     WHERE ticket_id=%s ORDER BY n.id""", (tid,))
                 t["history"] = d.all("""SELECT h.*,u.full_name user_name FROM history h JOIN users u ON u.id=h.user_id
@@ -945,12 +968,35 @@ class Handler(BaseHTTPRequestHandler):
                       (text(body, "diagnosis", True, 4000), est, bool(body.get("ask_approval")), bool(body.get("ask_approval")), tid))
                 log(d, tid, user["id"], "diagnosis", f"{est if est is not None else ''}" + ("|ask" if body.get("ask_approval") else ""))
             elif sub == "estimate":
-                need(can_handle_customer, 403, "forbidden")
+                need(is_mgr, 403, "forbidden")
                 need(not closed, 400, "ticket_closed")
                 estimate = money(body, "estimate")
                 d.run("""UPDATE tickets SET estimate=%s, approval='pending',
                          status=CASE WHEN status IN ('received','assigned','in_repair') THEN 'waiting_customer' ELSE status END
                          WHERE id=%s""", (estimate, tid))
+                log(d, tid, user["id"], "estimate", str(estimate))
+            elif sub == "service_items":
+                need(can_handle_customer, 403, "forbidden")
+                need(not closed, 400, "ticket_closed")
+                name = text(body, "name", True, 500)
+                need(body.get("price") not in (None, ""), 400, "missing:price")
+                price = money(body, "price")
+                d.run("""INSERT INTO service_items(ticket_id,name,price,user_id,created_at)
+                    VALUES(%s,%s,%s,%s,%s) RETURNING id""", (tid, name, price, user["id"], now()))
+                estimate = refresh_ticket_quote(d, t)
+                log(d, tid, user["id"], "service_added", f"{name}|{price}")
+                log(d, tid, user["id"], "estimate", str(estimate))
+            elif sub == "service_price":
+                need(can_handle_customer, 403, "forbidden")
+                need(not closed, 400, "ticket_closed")
+                service_id = int(body.get("id"))
+                need(body.get("price") not in (None, ""), 400, "missing:price")
+                price = money(body, "price")
+                service = d.one("SELECT name FROM service_items WHERE id=%s AND ticket_id=%s", (service_id, tid))
+                need(service, 404, "not_found")
+                d.run("UPDATE service_items SET price=%s WHERE id=%s AND ticket_id=%s", (price, service_id, tid))
+                estimate = refresh_ticket_quote(d, t)
+                log(d, tid, user["id"], "service_priced", f"{service['name']}|{price}")
                 log(d, tid, user["id"], "estimate", str(estimate))
             elif sub == "approval":
                 need(can_handle_customer, 403, "forbidden")
@@ -975,28 +1021,40 @@ class Handler(BaseHTTPRequestHandler):
                 qty = int(body.get("qty") or 1)
                 need(1 <= qty <= 1000, 400, "bad_number")
                 price = money(body, "price") if is_mgr else decimal.Decimal("0")
+                name = text(body, "name", True)
                 d.run("INSERT INTO parts(ticket_id,name,serial,price,qty,user_id,created_at) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                      (tid, text(body, "name", True), text(body, "serial", False, 100), price, qty, user["id"], now()))
-                log(d, tid, user["id"], "part_added", text(body, "name"))
+                      (tid, name, text(body, "serial", False, 100), price, qty, user["id"], now()))
+                log(d, tid, user["id"], "part_added", name)
+                if is_mgr:
+                    estimate = refresh_ticket_quote(d, t)
+                    log(d, tid, user["id"], "estimate", str(estimate))
             elif sub == "part_price":
                 need(can_handle_customer, 403, "forbidden")
                 need(not closed, 400, "ticket_closed")
                 part_id = int(body.get("id"))
+                need(body.get("price") not in (None, ""), 400, "missing:price")
                 price = money(body, "price")
                 part = d.one("SELECT name FROM parts WHERE id=%s AND ticket_id=%s", (part_id, tid))
                 need(part, 404, "not_found")
                 d.run("UPDATE parts SET price=%s WHERE id=%s AND ticket_id=%s", (price, part_id, tid))
+                estimate = refresh_ticket_quote(d, t)
                 log(d, tid, user["id"], "part_priced", f"{part['name']}|{price}")
+                log(d, tid, user["id"], "estimate", str(estimate))
             elif sub == "parts_delete":
                 need(is_mgr, 403, "forbidden")
                 p = d.one("SELECT name FROM parts WHERE id=%s AND ticket_id=%s", (int(body.get("id")), tid))
                 need(p, 404, "not_found")
                 d.run("DELETE FROM parts WHERE id=%s", (int(body.get("id")),))
                 log(d, tid, user["id"], "part_removed", p["name"])
+                estimate = refresh_ticket_quote(d, t)
+                log(d, tid, user["id"], "estimate", str(estimate))
             elif sub == "charges":
-                need(can_handle_customer, 403, "forbidden")
-                d.run("UPDATE tickets SET labor=%s, discount=%s WHERE id=%s", (money(body, "labor"), money(body, "discount"), tid))
-                log(d, tid, user["id"], "charges", f"{money(body, 'labor')}|{money(body, 'discount')}")
+                need(is_mgr, 403, "forbidden")
+                labor, discount = money(body, "labor"), money(body, "discount")
+                d.run("UPDATE tickets SET labor=%s, discount=%s WHERE id=%s", (labor, discount, tid))
+                log(d, tid, user["id"], "charges", f"{labor}|{discount}")
+                estimate = refresh_ticket_quote(d, {**t, "labor": labor, "discount": discount})
+                log(d, tid, user["id"], "estimate", str(estimate))
             elif sub == "payments":
                 need(can_handle_customer, 403, "forbidden")
                 amt = money(body, "amount")

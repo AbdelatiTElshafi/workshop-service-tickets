@@ -308,7 +308,7 @@ const ERR = {bad_login:'اسم المستخدم أو كلمة المرور غل�
   printer_unreachable:'الطابعة مش بترد - اتأكد إنها شغالة والـ IP صح', photo_too_large:'الصورة أكبر من 8 ميجا', bad_old_password:'كلمة المرور القديمة غلط',
   bad_number:'الرقم مش مظبوط', ticket_closed:'التذكرة دي مقفولة', not_repaired:'الجهاز لسه مش جاهز للتسليم', device_not_found:'السيريال ده مادخلش الورشة قبل كده',
   backup_failed:'النسخة الاحتياطية فشلت', db_down:'قاعدة البيانات مش شغالة - شغّل start.bat تاني', cant_demote_self:'مينفعش توقف حسابك أو تشيل صلاحية المدير منه',
-  bad_date:'التاريخ مش مظبوط', not_found:'مش موجود', no_photos:'اختار صور الأول', too_large:'الملفات كبيرة أوي',
+  bad_date:'التاريخ مش مظبوط', not_found:'مش موجود', no_photos:'اختار صور الأول', too_large:'الملفات كبيرة أوي', 'missing:price':'اكتب السعر',
   device_already_open:'الجهاز موجود بالفعل في الورشة — راجع مدير الورشة', search_too_short:'اكتب حرفين على الأقل للبحث',
   short_password_admin:'كلمة مرور مدير النظام لازم 6 حروف على الأقل', same_password:'كلمة المرور الجديدة لازم تبقى مختلفة عن القديمة',
   must_change_pw:'لازم تغيّر كلمة المرور الأول', confirm_mismatch:'رقم التذكرة اللي كتبته مش مطابق', already_setup:'البرنامج متجهّز قبل كده — سجّل دخول'};
@@ -771,7 +771,7 @@ function renderTicket() {
   if (isMgr() && !closed) actions.push(btn('👤 تعيين فني', 'mAssign()'));
   if ((canWork || isFront()) && !closed) actions.push(btn('🔄 تغيير الحالة', 'mStatus()'));
   if (canWork && !closed) actions.push(btn('🩺 تشخيص وعرض سعر', 'mDiagnosis()'));
-  if (isServiceAdvisor() && !closed) actions.push(btn('💰 تسجيل عرض السعر', 'mEstimate()'));
+  if (canHandleCustomer() && !closed) actions.push(btn('💰 إضافة بند صيانة', 'mServiceItem()'));
   if (canHandleCustomer() && t.approval === 'pending') actions.push(btn('✋ رد العميل', 'mApproval()', 'pri'));
   if (canWork && !closed) actions.push(btn('🛠 إضافة شغل', 'mNote()'), btn('🔩 إضافة قطعة', 'mPart()'));
   if (canHandleCustomer() && !closed) actions.push(btn('📦 تسليم للعميل', 'mDeliver()', t.status === 'repaired' ? 'ok' : ''));
@@ -800,7 +800,7 @@ function renderTicket() {
     ${['waiting_customer','waiting_parts'].includes(t.status) ? `<div class="alert warn" style="margin:12px 0 0">${icon('info')}<div>${ST[t.status]}${t.estimate != null && t.status === 'waiting_customer' ? ` — عرض السعر: <b>${money(t.estimate)}</b>` : ''}</div></div>` : ''}
     <div class="row" style="margin-top:14px">${actions.join('') || '<span class="muted small">مفيش إجراءات متاحة ليك على التذكرة دي</span>'}</div>
   </div>
-  <div class="tabs" id="tabs">${[['overview','نظرة عامة'], ['work','الشغل والقطع', t.notes.length + t.parts.length], ...(isTech() ? [] : [['money','الحساب']]),
+  <div class="tabs" id="tabs">${[['overview','نظرة عامة'], ['work','الشغل والقطع', t.notes.length + t.parts.length + t.services.length], ...(isTech() ? [] : [['money','الحساب']]),
     ['photos','الصور', t.photos.length], ['history','السجل', t.history.length]].map(([k, l, n]) =>
     `<a data-t="${k}" class="${TK_TAB === k ? 'on' : ''}">${l}${n ? `<span class="n num">${n}</span>` : ''}</a>`).join('')}</div>
   <div id="tab"></div>`;
@@ -845,12 +845,19 @@ function tabWork() {
   <div class="card"><div class="card-h"><h3>الشغل اللي اتعمل</h3><span class="sp"></span>${canWork && !closed ? '<button class="btn sm pri" onclick="mNote()">+ إضافة شغل</button>' : ''}</div>
     ${t.notes.map(n => `<div class="note"><div class="h">${chip(KIND[n.kind] || n.kind, {maintenance:'blue', inspection:'gray', setup:'teal', note:'amber'}[n.kind] || 'gray', 'nodot')}
       <b>${esc(n.user_name)}</b> · ${fmtD(n.created_at)}</div><p>${esc(n.text)}</p></div>`).join('') || emptyBox('لسه محدش كتب شغل على الجهاز')}</div>
+  <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>بنود الصيانة وأسعارها</h3><span class="sp"></span>
+    ${canHandleCustomer() && !closed ? '<button class="btn sm pri" onclick="mServiceItem()">+ إضافة بند صيانة</button>' : ''}</div>
+    <div class="tbl-wrap">${t.services.length ? `<table class="t"><thead><tr><th>الصيانة / الخدمة</th>${isTech() ? '' : '<th>السعر</th>'}<th>سجلها</th><th></th></tr></thead><tbody>
+      ${t.services.map(s => `<tr><td><b>${esc(s.name)}</b></td>${isTech() ? '' : `<td>${money(s.price)}</td>`}
+        <td class="small">${esc(s.user_name)}<div class="muted">${fmtD(s.created_at)}</div></td>
+        <td>${canHandleCustomer() && !closed ? `<button class="btn sm" onclick="mServicePrice(${s.id},${s.price})">تعديل السعر</button>` : ''}</td></tr>`).join('')}
+      </tbody></table>` : emptyBox('لسه مفيش بنود صيانة متسعّرة')}</div></div>
   <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>قطع الغيار</h3><span class="sp"></span>${canWork && !closed ? '<button class="btn sm pri" onclick="mPart()">+ إضافة قطعة</button>' : ''}</div>
     <div class="tbl-wrap">${t.parts.length ? `<table class="t"><thead><tr><th>القطعة</th><th>السيريال</th><th>الكمية</th>${isTech() ? '' : '<th>السعر</th><th>الإجمالي</th>'}<th>ركّبها</th><th></th></tr></thead><tbody>
       ${t.parts.map(p => `<tr><td><b>${esc(p.name)}</b></td><td class="mono">${esc(p.serial) || '—'}</td><td class="num">${p.qty}</td>
         ${isTech() ? '' : `<td>${money(p.price)}</td><td>${money(p.price * p.qty)}</td>`}
         <td class="small">${esc(p.user_name)}<div class="muted">${fmtD(p.created_at)}</div></td>
-        <td>${canHandleCustomer() && !closed ? `<button class="btn sm" onclick="mPartPrice(${p.id},${p.price})">السعر</button>` : ''}
+        <td>${canHandleCustomer() && !closed ? `<button class="btn sm" onclick="mPartPrice(${p.id},${p.price})">تعديل السعر</button>` : ''}
           ${isMgr() ? `<button class="btn sm danger" onclick="delPart(${p.id})">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table>` : emptyBox('مفيش قطع غيار')}</div></div>`;
 }
 function tabMoney() {
@@ -860,9 +867,10 @@ function tabMoney() {
     <div class="tbl-wrap">${t.payments.length ? `<table class="t"><thead><tr><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>استلمها</th></tr></thead><tbody>
       ${t.payments.map(p => `<tr><td><b>${money(p.amount)}</b></td><td>${PAY[p.method] || p.method}</td><td>${esc(p.note) || '—'}</td><td class="small">${esc(p.user_name)}<div class="muted">${fmtD(p.created_at)}</div></td></tr>`).join('')}
       </tbody></table>` : emptyBox('لسه مفيش مدفوعات')}</div></div>
-    <div class="card"><div class="card-h"><h3>الحساب</h3><span class="sp"></span>${canHandleCustomer() && !closed ? '<button class="btn sm" onclick="mCharges()">المصنعية والخصم</button>' : ''}</div>
+    <div class="card"><div class="card-h"><h3>الحساب</h3><span class="sp"></span>${isMgr() && !closed ? '<button class="btn sm" onclick="mCharges()">المصنعية والخصم</button>' : ''}</div>
       <div class="money"><span>قطع الغيار</span><b>${money(t.parts_total)}</b></div>
-      <div class="money"><span>المصنعية</span><b>${money(t.labor)}</b></div>
+      <div class="money"><span>بنود الصيانة</span><b>${money(t.service_total)}</b></div>
+      <div class="money"><span>مصنعية أخرى</span><b>${money(t.labor)}</b></div>
       <div class="money"><span>الخصم</span><b>- ${money(t.discount)}</b></div>
       <div class="money tot"><span>الإجمالي</span><b>${money(t.total)}</b></div>
       <div class="money"><span>المدفوع</span><b style="color:var(--green)">${money(t.paid)}</b></div>
@@ -886,7 +894,8 @@ function tabHistory() {
 function histText(h) {
   const a = {created:'فتح التذكرة', assigned:'تعيين فني', status:'تغيير حالة', note:'إضافة شغل', part_added:'تركيب قطعة', part_removed:'حذف قطعة',
     photos:'رفع صور', label_printed:'طباعة استيكر على الشبكة', diagnosis:'تشخيص', approval:'رد العميل', charges:'تعديل المصنعية والخصم',
-    estimate:'تسجيل عرض سعر', part_priced:'تسعير قطعة', payment:'تسجيل دفعة', delivered:'تسليم للعميل',
+    estimate:'تحديث إجمالي عرض السعر', service_added:'إضافة بند صيانة', service_priced:'تسعير بند صيانة',
+    part_priced:'تسعير قطعة', payment:'تسجيل دفعة', delivered:'تسليم للعميل',
     reopened:'إعادة فتح التذكرة', edited:'تعديل بيانات الجهاز', printed:'طباعة'}[h.action] || h.action;
   let d = h.detail || '';
   if (h.action === 'created') { const [ty, n, ...f] = d.split('|'); d = [TYPES[ty] || ty, n ? `${n} صور` : '', f.includes('first') ? 'أول دخول' : '', f.includes('warranty') ? 'في الضمان' : ''].filter(Boolean).join('، '); }
@@ -896,7 +905,10 @@ function histText(h) {
   else if (h.action === 'approval') d = d.replace(/^approved/, 'وافق').replace(/^rejected/, 'رفض');
   else if (h.action === 'payment') { const [m, w] = d.split('|'); d = `${m} ${cur()} ${PAY[w] || ''}`; }
   else if (h.action === 'charges') { const [l, ds] = d.split('|'); d = `مصنعية ${l} · خصم ${ds}`; }
-  else if (h.action === 'estimate') d = `سعر الصيانة ${d} ${cur()}`;
+  else if (h.action === 'estimate') d = `إجمالي عرض السعر ${d} ${cur()}`;
+  else if (['service_added','service_priced','part_priced'].includes(h.action)) {
+    const [name, price] = d.split('|'); d = `${name} · ${price} ${cur()}`;
+  }
   else if (h.action === 'delivered') { const [n, w] = d.split('|'); d = `${n}${+w ? ` · ضمان ${w} يوم` : ''}`; }
   else if (h.action === 'diagnosis') { const [e, ask] = d.split('|'); d = (e ? `عرض سعر ${e} ${cur()}` : '') + (ask ? ' · اتبعت للعميل' : ''); }
   else if (h.action === 'printed') d = {intake:'إيصال استلام', delivery:'إيصال تسليم', label:'استيكر'}[d] || d;
@@ -924,10 +936,16 @@ function mDiagnosis() {
     <label class="row" style="cursor:pointer"><input type="checkbox" name="a" ${TK.approval === 'approved' ? '' : 'checked'}> محتاج موافقة العميل قبل ما نكمّل (الحالة هتبقى "مستني موافقة العميل")</label>` : ''}`,
     onOk: f => tAct('diagnosis', {diagnosis:fv(f, 'd'), ...(canSetPrice ? {estimate:fv(f, 'e'), ask_approval:f.elements.a.checked} : {})}, 'التشخيص اتسجل')});
 }
-function mEstimate() {
-  modal({title:'تسجيل عرض سعر الصيانة', body:`<label class="f req">سعر الصيانة (${esc(cur())})<input name="e" type="number" min="0" step="0.01" class="num" value="${TK.estimate ?? ''}"></label>
-    <p class="muted small" style="margin:0">بعد تسجيل السعر هتتحول التذكرة لمستنية موافقة العميل.</p>`,
-    onOk: f => tAct('estimate', {estimate:fv(f, 'e')}, 'عرض السعر اتسجل ومستني موافقة العميل')});
+function mServiceItem() {
+  modal({title:'إضافة وتسعير بند صيانة', body:`<label class="f req">اسم الصيانة أو الخدمة<input name="n" required placeholder="مثلاً: تغيير مدخل الشحن"></label>
+    <label class="f req">سعر البند (${esc(cur())})<input name="p" required type="number" min="0" step="0.01" class="num"></label>
+    <p class="muted small" style="margin:0">كل بند بيتسعر لوحده، والإجمالي وعرض السعر بيتحدّثوا تلقائيًا وتُطلب موافقة العميل.</p>`,
+    onOk: f => tAct('service_items', {name:fv(f, 'n'), price:fv(f, 'p')}, 'بند الصيانة اتسجل واتحدث عرض السعر')});
+}
+function mServicePrice(id, price) {
+  modal({title:'تعديل سعر بند الصيانة', body:`<label class="f req">السعر (${esc(cur())})<input name="p" required type="number" min="0" step="0.01" class="num" value="${price}"></label>
+    <p class="muted small" style="margin:0">هيتحدّث إجمالي عرض السعر وهتُطلب موافقة العميل من جديد.</p>`,
+    onOk: f => tAct('service_price', {id, price:fv(f, 'p')}, 'سعر بند الصيانة اتحدّث')});
 }
 function mApproval() {
   modal({title:'رد العميل على عرض السعر', body:`${TK.estimate != null ? `<div class="alert info">${icon('info')}<div>عرض السعر: <b>${money(TK.estimate)}</b><br>${esc(TK.diagnosis || '')}</div></div>` : ''}
@@ -948,7 +966,7 @@ function mPart() {
   api('suggest?field=part').then(v => m.el.querySelector('#dl-part').innerHTML = v.map(x => `<option value="${esc(x)}">`).join('')).catch(() => {});
 }
 function mPartPrice(id, price) {
-  modal({title:'تحديد سعر القطعة', body:`<label class="f req">سعر الوحدة (${esc(cur())})<input name="p" type="number" min="0" step="0.01" class="num" value="${price}"></label>`,
+  modal({title:'تحديد سعر القطعة', body:`<label class="f req">سعر الوحدة (${esc(cur())})<input name="p" required type="number" min="0" step="0.01" class="num" value="${price}"></label>`,
     onOk: f => tAct('part_price', {id, price:fv(f, 'p')}, 'سعر القطعة اتحدّث')});
 }
 async function delPart(pid) { if (await confirmBox('حذف قطعة', 'متأكد إنك عايز تحذف القطعة دي؟', 'حذف', true)) tAct('parts_delete', {id:pid}, 'اتحذفت'); }
@@ -1256,9 +1274,10 @@ async function printDelivery(id) {
       ${kvRow('تاريخ الاستلام', `<span dir="ltr">${fmtD(t.received_at)}</span>`)}${kvRow('تاريخ التسليم', when)}${kvRow('الفني', esc(t.assigned_to_name))}</table>
     <h3>العطل والشغل اللي اتعمل</h3><table class="kvt">${kvRow('العطل', esc(t.complaint))}${t.diagnosis ? kvRow('التشخيص', esc(t.diagnosis)) : ''}
       ${kvRow('الشغل', t.notes.map(n => `• ${esc(n.text)}`).join('<br>'))}</table>
-    <h3>قطع الغيار والحساب</h3><table class="lst"><tr><th>البيان</th><th>السيريال</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+    <h3>بنود الصيانة وقطع الغيار والحساب</h3><table class="lst"><tr><th>البيان</th><th>السيريال</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
       ${t.parts.map(p => `<tr><td>${esc(p.name)}</td><td dir="ltr">${esc(p.serial)}</td><td>${p.qty}</td><td>${money(p.price)}</td><td>${money(p.price * p.qty)}</td></tr>`).join('')}
-      <tr><td colspan="4">المصنعية</td><td>${money(t.labor)}</td></tr>
+      ${t.services.map(s => `<tr><td>${esc(s.name)}</td><td>—</td><td>1</td><td>${money(s.price)}</td><td>${money(s.price)}</td></tr>`).join('')}
+      ${+t.labor ? `<tr><td colspan="4">مصنعية أخرى</td><td>${money(t.labor)}</td></tr>` : ''}
       ${+t.discount ? `<tr><td colspan="4">الخصم</td><td>- ${money(t.discount)}</td></tr>` : ''}
       <tr class="tot"><td colspan="4">الإجمالي</td><td>${money(t.total)}</td></tr>
       <tr><td colspan="4">المدفوع</td><td>${money(t.paid)}</td></tr><tr class="tot"><td colspan="4">الباقي</td><td>${money(t.balance)}</td></tr></table>

@@ -25,7 +25,7 @@ KEEP_BACKUPS = 30
 STATUSES = ["received", "assigned", "in_repair", "waiting_customer", "waiting_parts", "repaired", "delivered", "rejected"]
 OPEN_STATUSES = ["received", "assigned", "in_repair", "waiting_customer", "waiting_parts"]
 INTAKE_TYPES = ["setup", "repair", "warranty", "inspection", "maintenance"]
-ROLES = ["admin", "manager", "technician"]
+ROLES = ["admin", "manager", "technician", "service_advisor"]
 PAY_METHODS = ["cash", "card", "transfer", "wallet"]
 SETTING_KEYS = {"printer_ip": 100, "company_name": 100, "company_sub": 150, "company_phone": 100,
                 "company_address": 300, "receipt_terms": 3000, "warranty_days": 10, "due_days": 10,
@@ -559,7 +559,9 @@ class Handler(BaseHTTPRequestHandler):
         role = user["role"]
         is_mgr = role in ("admin", "manager")
         is_front = is_mgr
-        can_receive = is_mgr or role == "technician"
+        is_service_advisor = role == "service_advisor"
+        can_handle_customer = is_mgr or is_service_advisor
+        can_receive = is_mgr or role in ("technician", "service_advisor")
 
         if parts == ["logout"]:
             d.run("DELETE FROM sessions WHERE user_id=%s", (user["id"],))
@@ -932,15 +934,26 @@ class Handler(BaseHTTPRequestHandler):
                 log(d, tid, user["id"], "edited")
             elif sub == "diagnosis":
                 need(can_work(user, t), 403, "forbidden")
+                need(is_mgr or (body.get("estimate") in (None, "") and not body.get("ask_approval")), 403, "forbidden")
                 est = money(body, "estimate") if body.get("estimate") not in (None, "") else None
+                if not is_mgr:
+                    est = t["estimate"]
                 d.run("""UPDATE tickets SET diagnosis=%s, estimate=%s,
                          approval=CASE WHEN %s AND approval<>'approved' THEN 'pending' ELSE approval END,
                          status=CASE WHEN %s AND status IN ('received','assigned','in_repair') THEN 'waiting_customer' ELSE status END
                          WHERE id=%s""",
                       (text(body, "diagnosis", True, 4000), est, bool(body.get("ask_approval")), bool(body.get("ask_approval")), tid))
                 log(d, tid, user["id"], "diagnosis", f"{est if est is not None else ''}" + ("|ask" if body.get("ask_approval") else ""))
+            elif sub == "estimate":
+                need(can_handle_customer, 403, "forbidden")
+                need(not closed, 400, "ticket_closed")
+                estimate = money(body, "estimate")
+                d.run("""UPDATE tickets SET estimate=%s, approval='pending',
+                         status=CASE WHEN status IN ('received','assigned','in_repair') THEN 'waiting_customer' ELSE status END
+                         WHERE id=%s""", (estimate, tid))
+                log(d, tid, user["id"], "estimate", str(estimate))
             elif sub == "approval":
-                need(is_front, 403, "forbidden")
+                need(can_handle_customer, 403, "forbidden")
                 dec = text(body, "decision", True)
                 need(dec in ("approved", "rejected"), 400, "bad_decision")
                 new_status = ("in_repair" if t["assigned_to"] else "received") if dec == "approved" else "waiting_customer"
@@ -961,9 +974,19 @@ class Handler(BaseHTTPRequestHandler):
                 need(not closed, 400, "ticket_closed")
                 qty = int(body.get("qty") or 1)
                 need(1 <= qty <= 1000, 400, "bad_number")
+                price = money(body, "price") if is_mgr else decimal.Decimal("0")
                 d.run("INSERT INTO parts(ticket_id,name,serial,price,qty,user_id,created_at) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                      (tid, text(body, "name", True), text(body, "serial", False, 100), money(body, "price"), qty, user["id"], now()))
+                      (tid, text(body, "name", True), text(body, "serial", False, 100), price, qty, user["id"], now()))
                 log(d, tid, user["id"], "part_added", text(body, "name"))
+            elif sub == "part_price":
+                need(can_handle_customer, 403, "forbidden")
+                need(not closed, 400, "ticket_closed")
+                part_id = int(body.get("id"))
+                price = money(body, "price")
+                part = d.one("SELECT name FROM parts WHERE id=%s AND ticket_id=%s", (part_id, tid))
+                need(part, 404, "not_found")
+                d.run("UPDATE parts SET price=%s WHERE id=%s AND ticket_id=%s", (price, part_id, tid))
+                log(d, tid, user["id"], "part_priced", f"{part['name']}|{price}")
             elif sub == "parts_delete":
                 need(is_mgr, 403, "forbidden")
                 p = d.one("SELECT name FROM parts WHERE id=%s AND ticket_id=%s", (int(body.get("id")), tid))
@@ -971,11 +994,11 @@ class Handler(BaseHTTPRequestHandler):
                 d.run("DELETE FROM parts WHERE id=%s", (int(body.get("id")),))
                 log(d, tid, user["id"], "part_removed", p["name"])
             elif sub == "charges":
-                need(is_mgr, 403, "forbidden")
+                need(can_handle_customer, 403, "forbidden")
                 d.run("UPDATE tickets SET labor=%s, discount=%s WHERE id=%s", (money(body, "labor"), money(body, "discount"), tid))
                 log(d, tid, user["id"], "charges", f"{money(body, 'labor')}|{money(body, 'discount')}")
             elif sub == "payments":
-                need(is_front, 403, "forbidden")
+                need(can_handle_customer, 403, "forbidden")
                 amt = money(body, "amount")
                 need(amt > 0, 400, "bad_number")
                 method_ = text(body, "method") or "cash"
@@ -984,7 +1007,7 @@ class Handler(BaseHTTPRequestHandler):
                       (tid, amt, method_, text(body, "note"), user["id"], now()))
                 log(d, tid, user["id"], "payment", f"{amt}|{method_}")
             elif sub == "deliver":
-                need(is_front, 403, "forbidden")
+                need(can_handle_customer, 403, "forbidden")
                 need(not closed, 400, "ticket_closed")
                 need(t["status"] == "repaired" or body.get("force"), 400, "not_repaired")
                 days = int(body.get("warranty_days") or 0)
@@ -1006,9 +1029,9 @@ class Handler(BaseHTTPRequestHandler):
                 d.run("UPDATE tickets SET status='in_repair', closed_at=NULL WHERE id=%s", (tid,))
                 log(d, tid, user["id"], "reopened", text(body, "note"))
             elif sub == "photos":
-                need(can_work(user, t) or is_front, 403, "forbidden")
                 stage = text(body, "stage") or "repair"
                 need(stage in ("intake", "repair", "delivery"), 400, "bad_stage")
+                need(can_work(user, t) or is_front or (is_service_advisor and stage in ("intake", "delivery")), 403, "forbidden")
                 photos = body.get("photos") or []
                 need(isinstance(photos, list) and 0 < len(photos) <= 20, 400, "no_photos")
                 for p in photos:

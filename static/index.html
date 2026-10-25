@@ -297,7 +297,7 @@ const ST_HEX = {received:'#9ca3af', assigned:'#2563eb', in_repair:'#0891b2', wai
 const OPEN = ['received','assigned','in_repair','waiting_customer','waiting_parts'];
 const TYPES = {setup:'تهيئة أول مرة', repair:'صيانة', warranty:'ضمان', inspection:'فحص', maintenance:'صيانة دورية'};
 const TYPE_C = {setup:'teal', repair:'blue', warranty:'pink', inspection:'gray', maintenance:'purple'};
-const ROLE = {admin:'مدير النظام', manager:'مدير الورشة', technician:'فني صيانة'};
+const ROLE = {admin:'مدير النظام', manager:'مدير الورشة', technician:'فني صيانة', service_advisor:'مسؤول الاستقبال والتسعير'};
 const PAY = {cash:'كاش', card:'فيزا', transfer:'تحويل بنكي', wallet:'محفظة إلكترونية'};
 const KIND = {maintenance:'صيانة', inspection:'فحص', setup:'تهيئة', note:'ملاحظة'};
 const APPROVAL = {none:'', pending:'مستني رد العميل', approved:'العميل وافق', rejected:'العميل رفض'};
@@ -340,7 +340,9 @@ const typeChip = t => chip(TYPES[t] || t, TYPE_C[t] || 'gray', 'nodot');
 const isMgr = () => ['admin','manager'].includes(ME.role);
 const isFront = () => isMgr();
 const isTech = () => ME.role === 'technician';
-const canReceive = () => isMgr() || isTech();
+const isServiceAdvisor = () => ME.role === 'service_advisor';
+const canHandleCustomer = () => isMgr() || isServiceAdvisor();
+const canReceive = () => isMgr() || isTech() || isServiceAdvisor();
 const fmtD = s => s ? String(s).slice(0, 16) : '—';
 const day = s => s ? String(s).slice(0, 10) : '—';
 const cur = () => CFG.currency || 'ج.م';
@@ -769,9 +771,10 @@ function renderTicket() {
   if (isMgr() && !closed) actions.push(btn('👤 تعيين فني', 'mAssign()'));
   if ((canWork || isFront()) && !closed) actions.push(btn('🔄 تغيير الحالة', 'mStatus()'));
   if (canWork && !closed) actions.push(btn('🩺 تشخيص وعرض سعر', 'mDiagnosis()'));
-  if (isFront() && t.approval === 'pending') actions.push(btn('✋ رد العميل', 'mApproval()', 'pri'));
+  if (isServiceAdvisor() && !closed) actions.push(btn('💰 تسجيل عرض السعر', 'mEstimate()'));
+  if (canHandleCustomer() && t.approval === 'pending') actions.push(btn('✋ رد العميل', 'mApproval()', 'pri'));
   if (canWork && !closed) actions.push(btn('🛠 إضافة شغل', 'mNote()'), btn('🔩 إضافة قطعة', 'mPart()'));
-  if (isFront() && !closed) actions.push(btn('📦 تسليم للعميل', 'mDeliver()', t.status === 'repaired' ? 'ok' : ''));
+  if (canHandleCustomer() && !closed) actions.push(btn('📦 تسليم للعميل', 'mDeliver()', t.status === 'repaired' ? 'ok' : ''));
   if (isMgr() && closed) actions.push(btn('↩ إعادة فتح', 'mReopen()'));
   if (ME.role === 'admin') actions.push('<span class="sp"></span>' + btn('🗑 مسح التذكرة', 'mDelete()', 'danger'));
   $('#view').innerHTML = `
@@ -847,16 +850,17 @@ function tabWork() {
       ${t.parts.map(p => `<tr><td><b>${esc(p.name)}</b></td><td class="mono">${esc(p.serial) || '—'}</td><td class="num">${p.qty}</td>
         ${isTech() ? '' : `<td>${money(p.price)}</td><td>${money(p.price * p.qty)}</td>`}
         <td class="small">${esc(p.user_name)}<div class="muted">${fmtD(p.created_at)}</div></td>
-        <td>${isMgr() ? `<button class="btn sm danger" onclick="delPart(${p.id})">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table>` : emptyBox('مفيش قطع غيار')}</div></div>`;
+        <td>${canHandleCustomer() && !closed ? `<button class="btn sm" onclick="mPartPrice(${p.id},${p.price})">السعر</button>` : ''}
+          ${isMgr() ? `<button class="btn sm danger" onclick="delPart(${p.id})">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table>` : emptyBox('مفيش قطع غيار')}</div></div>`;
 }
 function tabMoney() {
   const t = TK, closed = ['delivered','rejected'].includes(t.status);
   $('#tab').innerHTML = `<div class="cols"><div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>المدفوعات</h3><span class="sp"></span>
-      ${isFront() ? '<button class="btn sm pri" onclick="mPayment()">+ تسجيل دفعة</button>' : ''}</div>
+      ${canHandleCustomer() ? '<button class="btn sm pri" onclick="mPayment()">+ تسجيل دفعة</button>' : ''}</div>
     <div class="tbl-wrap">${t.payments.length ? `<table class="t"><thead><tr><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>استلمها</th></tr></thead><tbody>
       ${t.payments.map(p => `<tr><td><b>${money(p.amount)}</b></td><td>${PAY[p.method] || p.method}</td><td>${esc(p.note) || '—'}</td><td class="small">${esc(p.user_name)}<div class="muted">${fmtD(p.created_at)}</div></td></tr>`).join('')}
       </tbody></table>` : emptyBox('لسه مفيش مدفوعات')}</div></div>
-    <div class="card"><div class="card-h"><h3>الحساب</h3><span class="sp"></span>${isMgr() && !closed ? '<button class="btn sm" onclick="mCharges()">المصنعية والخصم</button>' : ''}</div>
+    <div class="card"><div class="card-h"><h3>الحساب</h3><span class="sp"></span>${canHandleCustomer() && !closed ? '<button class="btn sm" onclick="mCharges()">المصنعية والخصم</button>' : ''}</div>
       <div class="money"><span>قطع الغيار</span><b>${money(t.parts_total)}</b></div>
       <div class="money"><span>المصنعية</span><b>${money(t.labor)}</b></div>
       <div class="money"><span>الخصم</span><b>- ${money(t.discount)}</b></div>
@@ -867,11 +871,13 @@ function tabMoney() {
     </div></div>`;
 }
 function tabPhotos() {
-  const t = TK, canUp = isFront() || isMgr() || (isTech() && t.assigned_to === ME.id);
+  const t = TK, canUp = isFront() || isServiceAdvisor() || (isTech() && t.assigned_to === ME.id);
+  const stages = isTech() ? [['repair','صور الصيانة']] : isServiceAdvisor() ? [['intake','صور الاستلام'],['delivery','صور التسليم']] :
+    [['intake','صور الاستلام'],['repair','صور الصيانة'],['delivery','صور التسليم']];
   const grp = (st, l) => `<h3 style="margin-top:6px">${l}</h3><div class="thumbs" style="margin-bottom:16px">${t.photos.filter(p => p.stage === st).map(p =>
     `<img src="/photos/${p.file}" onclick="lightbox(this.src)" title="${fmtD(p.created_at)}">`).join('') || '<span class="muted small">مفيش صور</span>'}</div>`;
   $('#tab').innerHTML = `<div class="card"><div class="card-h"><span class="sp"></span>${canUp ? '<button class="btn sm pri" onclick="mPhotos()">+ رفع صور</button>' : ''}</div>
-    ${grp('intake', 'صور الاستلام')}${grp('repair', 'صور الصيانة')}${grp('delivery', 'صور التسليم')}</div>`;
+    ${stages.map(([stage, label]) => grp(stage, label)).join('')}</div>`;
 }
 function tabHistory() {
   $('#tab').innerHTML = `<div class="card"><div class="tl">${TK.history.map(h => `<div class="it" style="--dot:${h.action === 'status' ? ST_HEX[(h.detail || '').split(' -> ')[1]?.split(' ')[0]] || '#000' : '#000'}">
@@ -880,7 +886,8 @@ function tabHistory() {
 function histText(h) {
   const a = {created:'فتح التذكرة', assigned:'تعيين فني', status:'تغيير حالة', note:'إضافة شغل', part_added:'تركيب قطعة', part_removed:'حذف قطعة',
     photos:'رفع صور', label_printed:'طباعة استيكر على الشبكة', diagnosis:'تشخيص', approval:'رد العميل', charges:'تعديل المصنعية والخصم',
-    payment:'تسجيل دفعة', delivered:'تسليم للعميل', reopened:'إعادة فتح التذكرة', edited:'تعديل بيانات الجهاز', printed:'طباعة'}[h.action] || h.action;
+    estimate:'تسجيل عرض سعر', part_priced:'تسعير قطعة', payment:'تسجيل دفعة', delivered:'تسليم للعميل',
+    reopened:'إعادة فتح التذكرة', edited:'تعديل بيانات الجهاز', printed:'طباعة'}[h.action] || h.action;
   let d = h.detail || '';
   if (h.action === 'created') { const [ty, n, ...f] = d.split('|'); d = [TYPES[ty] || ty, n ? `${n} صور` : '', f.includes('first') ? 'أول دخول' : '', f.includes('warranty') ? 'في الضمان' : ''].filter(Boolean).join('، '); }
   else if (h.action === 'status') d = d.replace(/^(\w+) -> (\w+)/, (_, x, y) => `${ST[x] || x} ← ${ST[y] || y}`);
@@ -889,6 +896,7 @@ function histText(h) {
   else if (h.action === 'approval') d = d.replace(/^approved/, 'وافق').replace(/^rejected/, 'رفض');
   else if (h.action === 'payment') { const [m, w] = d.split('|'); d = `${m} ${cur()} ${PAY[w] || ''}`; }
   else if (h.action === 'charges') { const [l, ds] = d.split('|'); d = `مصنعية ${l} · خصم ${ds}`; }
+  else if (h.action === 'estimate') d = `سعر الصيانة ${d} ${cur()}`;
   else if (h.action === 'delivered') { const [n, w] = d.split('|'); d = `${n}${+w ? ` · ضمان ${w} يوم` : ''}`; }
   else if (h.action === 'diagnosis') { const [e, ask] = d.split('|'); d = (e ? `عرض سعر ${e} ${cur()}` : '') + (ask ? ' · اتبعت للعميل' : ''); }
   else if (h.action === 'printed') d = {intake:'إيصال استلام', delivery:'إيصال تسليم', label:'استيكر'}[d] || d;
@@ -910,10 +918,16 @@ function mStatus() {
     onOk: f => tAct('status', {status:f.querySelector('input[name=s]:checked')?.value, note:fv(f, 'n')}, 'الحالة اتغيرت')});
 }
 function mDiagnosis() {
-  modal({title:'تشخيص وعرض سعر', body:`<label class="f req">التشخيص — العطل الحقيقي إيه؟<textarea name="d">${esc(TK.diagnosis || '')}</textarea></label>
-    <label class="f">التكلفة المتوقعة (${esc(cur())})<input name="e" type="number" min="0" step="0.01" class="num" value="${TK.estimate ?? ''}"></label>
-    <label class="row" style="cursor:pointer"><input type="checkbox" name="a" ${TK.approval === 'approved' ? '' : 'checked'}> محتاج موافقة العميل قبل ما نكمّل (الحالة هتبقى "مستني موافقة العميل")</label>`,
-    onOk: f => tAct('diagnosis', {diagnosis:fv(f, 'd'), estimate:fv(f, 'e'), ask_approval:f.elements.a.checked}, 'التشخيص اتسجل')});
+  const canSetPrice = isMgr();
+  modal({title:canSetPrice ? 'تشخيص وعرض سعر' : 'تشخيص الجهاز', body:`<label class="f req">التشخيص — العطل الحقيقي إيه؟<textarea name="d">${esc(TK.diagnosis || '')}</textarea></label>
+    ${canSetPrice ? `<label class="f">التكلفة المتوقعة (${esc(cur())})<input name="e" type="number" min="0" step="0.01" class="num" value="${TK.estimate ?? ''}"></label>
+    <label class="row" style="cursor:pointer"><input type="checkbox" name="a" ${TK.approval === 'approved' ? '' : 'checked'}> محتاج موافقة العميل قبل ما نكمّل (الحالة هتبقى "مستني موافقة العميل")</label>` : ''}`,
+    onOk: f => tAct('diagnosis', {diagnosis:fv(f, 'd'), ...(canSetPrice ? {estimate:fv(f, 'e'), ask_approval:f.elements.a.checked} : {})}, 'التشخيص اتسجل')});
+}
+function mEstimate() {
+  modal({title:'تسجيل عرض سعر الصيانة', body:`<label class="f req">سعر الصيانة (${esc(cur())})<input name="e" type="number" min="0" step="0.01" class="num" value="${TK.estimate ?? ''}"></label>
+    <p class="muted small" style="margin:0">بعد تسجيل السعر هتتحول التذكرة لمستنية موافقة العميل.</p>`,
+    onOk: f => tAct('estimate', {estimate:fv(f, 'e')}, 'عرض السعر اتسجل ومستني موافقة العميل')});
 }
 function mApproval() {
   modal({title:'رد العميل على عرض السعر', body:`${TK.estimate != null ? `<div class="alert info">${icon('info')}<div>عرض السعر: <b>${money(TK.estimate)}</b><br>${esc(TK.diagnosis || '')}</div></div>` : ''}
@@ -929,9 +943,13 @@ function mNote() {
 function mPart() {
   const m = modal({title:'إضافة قطعة غيار', body:`<label class="f req">اسم القطعة<input name="n" list="dl-part"></label><datalist id="dl-part"></datalist>
     <div class="grid g3"><label class="f">سيريال القطعة<input name="s" class="mono"></label><label class="f">الكمية<input name="q" type="number" min="1" value="1" class="num"></label>
-    <label class="f">سعر الوحدة (${esc(cur())})<input name="p" type="number" min="0" step="0.01" class="num"></label></div>`,
-    ok:'إضافة', onOk: f => tAct('parts', {name:fv(f, 'n'), serial:fv(f, 's'), qty:fv(f, 'q'), price:fv(f, 'p')}, 'القطعة اتضافت')});
+    ${isMgr() ? `<label class="f">سعر الوحدة (${esc(cur())})<input name="p" type="number" min="0" step="0.01" class="num"></label>` : ''}</div>`,
+    ok:'إضافة', onOk: f => tAct('parts', {name:fv(f, 'n'), serial:fv(f, 's'), qty:fv(f, 'q'), ...(isMgr() ? {price:fv(f, 'p')} : {})}, 'القطعة اتضافت')});
   api('suggest?field=part').then(v => m.el.querySelector('#dl-part').innerHTML = v.map(x => `<option value="${esc(x)}">`).join('')).catch(() => {});
+}
+function mPartPrice(id, price) {
+  modal({title:'تحديد سعر القطعة', body:`<label class="f req">سعر الوحدة (${esc(cur())})<input name="p" type="number" min="0" step="0.01" class="num" value="${price}"></label>`,
+    onOk: f => tAct('part_price', {id, price:fv(f, 'p')}, 'سعر القطعة اتحدّث')});
 }
 async function delPart(pid) { if (await confirmBox('حذف قطعة', 'متأكد إنك عايز تحذف القطعة دي؟', 'حذف', true)) tAct('parts_delete', {id:pid}, 'اتحذفت'); }
 function mCharges() {
@@ -993,7 +1011,8 @@ function mEdit() {
       priority:f.elements.urgent.checked ? 'urgent' : 'normal'}, 'اتعدّلت')});
 }
 function mPhotos() {
-  const stages = isTech() ? [['repair','صيانة']] : [['repair','صيانة'], ['intake','استلام'], ['delivery','تسليم']];
+  const stages = isTech() ? [['repair','صيانة']] : isServiceAdvisor() ? [['intake','استلام'], ['delivery','تسليم']] :
+    [['repair','صيانة'], ['intake','استلام'], ['delivery','تسليم']];
   modal({title:'رفع صور', body:`<label class="f">النوع<div class="seg">${stages.map(([k, v], i) => `<label><input type="radio" name="s" value="${k}" ${i ? '' : 'checked'}><span>صور ${v}</span></label>`).join('')}</div></label>
     <input type="file" name="ph" accept="image/*" multiple class="inp">`,
     ok:'رفع', onOk: async f => { const photos = await readPhotos(f.elements.ph.files); if (!photos.length) return toast('اختار صور الأول', 'err');
@@ -1024,7 +1043,7 @@ async function viewDevice(serial) {
     $('#dres').innerHTML = serials.length ? `<div class="card"><h3>مفيش جهاز بالسيريال ده بالظبط — يمكن تقصد:</h3><div class="row">${serials.map(t =>
       `<a class="btn" href="#/device/${encodeURIComponent(t.serial)}"><span class="mono">${esc(t.serial)}</span> · ${esc(devName(t))} · ${esc(t.customer_name)}</a>`).join('')}</div></div>`
       : `<div class="card">${emptyBox(`السيريال <b class="mono">${esc(serial)}</b> مادخلش الورشة قبل كده.`, 'dev')}
-      ${isFront() ? `<div style="text-align:center"><button class="btn pri" onclick="nav('new');setTimeout(()=>{$('#n-serial').value=${JSON.stringify(serial).replace(/"/g, '&quot;')};lookupSerial()},300)">استلمه دلوقتي</button></div>` : ''}</div>`;
+      ${canReceive() ? `<div style="text-align:center"><button class="btn pri" onclick="nav('new');setTimeout(()=>{$('#n-serial').value=${JSON.stringify(serial).replace(/"/g, '&quot;')};lookupSerial()},300)">استلمه دلوقتي</button></div>` : ''}</div>`;
     return;
   }
   const v = dev.visits, first = v[v.length - 1];
@@ -1133,7 +1152,7 @@ async function viewSettings() {
   $('#view').innerHTML = `<div class="page-h"><h1>الإعدادات والمستخدمين</h1></div>
   <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>المستخدمين</h3><span class="sp"></span><button class="btn sm pri" onclick="mUser()">+ مستخدم جديد</button></div>
     <div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>الموبايل</th><th>الحالة</th><th></th></tr></thead><tbody>
-    ${USERS.map(u => `<tr><td><b>${esc(u.full_name)}</b></td><td class="mono">${esc(u.username)}</td><td>${chip(ROLE[u.role], {admin:'black', manager:'purple', technician:'cyan'}[u.role], 'nodot')}</td>
+    ${USERS.map(u => `<tr><td><b>${esc(u.full_name)}</b></td><td class="mono">${esc(u.username)}</td><td>${chip(ROLE[u.role], {admin:'black', manager:'purple', technician:'cyan', service_advisor:'amber'}[u.role], 'nodot')}</td>
       <td class="num">${esc(u.phone) || '—'}</td><td>${u.active ? chip('نشط', 'green') : chip('موقوف', 'red')}</td>
       <td><button class="btn sm" onclick='mUser(${JSON.stringify(u).replace(/'/g, "&#39;")})'>تعديل</button></td></tr>`).join('')}</tbody></table></div></div>
   <div class="grid g2">

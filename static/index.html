@@ -3,112 +3,402 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ورشة الصيانة</title>
+<title>RT — الصيانة</title>
+<link rel="icon" href="/rt-logo.jpg">
 <style>
-  :root { --bg:#f4f6f9; --card:#fff; --line:#dde2e8; --ink:#1d2733; --muted:#6b7684; --pri:#1f6feb; }
+  :root {
+    --bg:#f3f4f6; --card:#fff; --line:#e5e7eb; --line2:#d1d5db; --ink:#0a0a0a; --ink2:#374151; --muted:#6b7280;
+    --black:#0a0a0a; --side:#0a0a0a; --side-ink:#d4d4d4; --hover:#f9fafb;
+    --blue:#2563eb; --green:#16a34a; --red:#dc2626; --amber:#d97706; --purple:#7c3aed; --cyan:#0891b2; --teal:#0d9488; --slate:#475569; --pink:#db2777;
+    --r:10px; --shadow:0 1px 2px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.06); --shadow2:0 20px 50px rgba(0,0,0,.25);
+  }
   * { box-sizing:border-box; }
-  body { margin:0; font:15px/1.5 Tahoma, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
-  header { background:#1d2733; color:#fff; padding:10px 18px; display:flex; gap:14px; align-items:center; }
-  header b { font-size:17px; margin-inline-end:auto; }
-  header button { background:transparent; color:#fff; border:1px solid #556; }
-  main { max-width:1150px; margin:18px auto; padding:0 16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px; }
-  h2 { margin:0 0 12px; font-size:18px; } h3 { margin:14px 0 8px; font-size:16px; }
-  label { display:block; font-size:13px; color:var(--muted); margin-bottom:8px; }
-  input, select, textarea { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px; font:inherit; color:var(--ink); background:#fff; margin-top:3px; }
-  textarea { min-height:70px; }
-  button { padding:7px 14px; border:1px solid var(--line); border-radius:6px; background:#fff; font:inherit; cursor:pointer; }
-  button.pri { background:var(--pri); color:#fff; border-color:var(--pri); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0 14px; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  table { width:100%; border-collapse:collapse; }
-  th, td { text-align:start; padding:7px 8px; border-bottom:1px solid var(--line); font-size:14px; }
-  tr.click { cursor:pointer; } tr.click:hover { background:#f0f5ff; }
-  .badge { display:inline-block; padding:1px 9px; border-radius:10px; font-size:12px; color:#fff; }
-  .s-received{background:#7a8594}.s-assigned{background:#1f6feb}.s-in_repair{background:#0b7fab}
-  .s-waiting_customer{background:#d97706}.s-repaired{background:#15803d}.s-delivered{background:#4b5563}.s-rejected{background:#b91c1c}
-  .muted { color:var(--muted); font-size:13px; }
-  .thumbs { display:flex; gap:8px; flex-wrap:wrap; }
-  .thumbs img { width:110px; height:85px; object-fit:cover; border-radius:6px; border:1px solid var(--line); cursor:pointer; }
-  .err { color:#b91c1c; margin:6px 0; }
+  html, body { margin:0; }
+  body { font:14px/1.55 "Segoe UI", Tahoma, sans-serif; background:var(--bg); color:var(--ink); }
+  a { color:inherit; }
+  button, input, select, textarea { font:inherit; color:inherit; }
   .hidden { display:none !important; }
-  #login { max-width:340px; margin:80px auto; }
-  /* label print: 50x30 mm */
-  #label { display:none; }
+
+  /* ---------- login */
+  #login { min-height:100vh; display:grid; grid-template-columns:1fr 1fr; }
+  #login .brand { background:var(--black); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:30px; }
+  #login .brand img { width:140px; height:140px; border-radius:50%; }
+  #login .brand h1 { margin:0; font-size:26px; } #login .brand p { margin:0; color:#a3a3a3; }
+  #login .form { display:flex; align-items:center; justify-content:center; padding:30px; background:#fff; }
+  #login .form > div { width:100%; max-width:340px; }
+  #login h2 { margin:0 0 4px; font-size:22px; }
+  @media (max-width:760px) { #login { grid-template-columns:1fr; } #login .brand { padding:40px 20px; } #login .brand img { width:90px; height:90px; } }
+
+  /* ---------- shell */
+  #app { display:flex; min-height:100vh; }
+  aside { width:236px; flex-shrink:0; background:var(--side); color:var(--side-ink); display:flex; flex-direction:column; position:sticky; top:0; height:100vh; }
+  aside .logo { display:flex; align-items:center; gap:10px; padding:18px 16px; border-bottom:1px solid #222; }
+  aside .logo img { width:42px; height:42px; border-radius:50%; background:#fff; }
+  aside .logo b { color:#fff; font-size:16px; display:block; } aside .logo span { font-size:12px; color:#8a8a8a; }
+  aside nav { padding:10px 8px; display:flex; flex-direction:column; gap:2px; flex:1; overflow:auto; }
+  aside nav a { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; text-decoration:none; color:var(--side-ink); cursor:pointer; }
+  aside nav a:hover { background:#1c1c1c; color:#fff; }
+  aside nav a.on { background:#fff; color:#000; font-weight:600; }
+  aside nav a svg { width:18px; height:18px; flex-shrink:0; }
+  aside nav a .cnt { margin-inline-start:auto; background:var(--red); color:#fff; border-radius:10px; font-size:11px; padding:0 7px; }
+  aside .me { padding:12px 14px; border-top:1px solid #222; font-size:13px; }
+  aside .me b { color:#fff; display:block; } aside .me span { color:#8a8a8a; }
+  aside .me .row { margin-top:8px; }
+  aside .me button { background:#1c1c1c; color:#ddd; border:1px solid #2a2a2a; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .top { position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:12px; padding:10px 22px; }
+  .top .burger { display:none; }
+  .search { flex:1; max-width:560px; position:relative; }
+  .search input { width:100%; padding:9px 38px 9px 64px; border:1px solid var(--line2); border-radius:10px; background:#fff; }
+  .search svg { position:absolute; right:12px; top:50%; transform:translateY(-50%); width:17px; color:var(--muted); }
+  .search kbd { position:absolute; left:10px; top:50%; transform:translateY(-50%); }
+  kbd { font:11px/1 Consolas, monospace; border:1px solid var(--line2); border-bottom-width:2px; border-radius:4px; padding:2px 5px; color:var(--muted); background:#fafafa; }
+  #view { padding:22px; max-width:1400px; width:100%; }
+  @media (max-width:900px) {
+    aside { position:fixed; inset:0 0 0 auto; z-index:50; transform:translateX(100%); transition:transform .2s; }
+    body.nav-open aside { transform:none; box-shadow:var(--shadow2); }
+    .top .burger { display:inline-flex; }
+    #view { padding:14px; }
+  }
+
+  /* ---------- basics */
+  h1 { font-size:22px; margin:0; } h2 { font-size:17px; margin:0 0 12px; } h3 { font-size:15px; margin:0 0 10px; }
+  .page-h { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  .page-h .sub { color:var(--muted); font-size:13px; }
+  .sp { flex:1; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); padding:18px; margin-bottom:16px; }
+  .card.flush { padding:0; overflow:hidden; }
+  .card-h { display:flex; align-items:center; gap:10px; margin-bottom:12px; } .card-h h2, .card-h h3 { margin:0; }
+  .muted { color:var(--muted); } .small { font-size:12.5px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .grid { display:grid; gap:14px; }
+  .g2 { grid-template-columns:repeat(2,minmax(0,1fr)); } .g3 { grid-template-columns:repeat(3,minmax(0,1fr)); } .g4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .cols { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; align-items:start; }
+  @media (max-width:1100px) { .cols { grid-template-columns:1fr; } .g4 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:640px) { .g2, .g3, .g4 { grid-template-columns:1fr; } }
+  .mono { font-family:Consolas, "Courier New", monospace; direction:ltr; unicode-bidi:embed; }
+  .num { direction:ltr; unicode-bidi:embed; }
+
+  label.f { display:flex; flex-wrap:wrap; align-items:baseline; font-size:12.5px; color:var(--ink2); font-weight:600; }
+  label.f > * { order:1; flex-basis:100%; }
+  .mono::placeholder { font-family:"Segoe UI", Tahoma, sans-serif; }
+  label.f > input, label.f > select, label.f > textarea, .inp { display:block; width:100%; margin-top:5px; padding:8px 10px; border:1px solid var(--line2); border-radius:8px; background:#fff; font-weight:400; }
+  textarea { min-height:76px; resize:vertical; }
+  input:focus, select:focus, textarea:focus { outline:2px solid #000; outline-offset:-1px; border-color:#000; }
+  .req::after { content:" *"; color:var(--red); }
+
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border:1px solid var(--line2); border-radius:8px; background:#fff; cursor:pointer; white-space:nowrap; text-decoration:none; font-weight:500; }
+  .btn:hover { background:var(--hover); border-color:#9ca3af; }
+  .btn svg { width:16px; height:16px; }
+  .btn.pri { background:#000; color:#fff; border-color:#000; } .btn.pri:hover { background:#262626; }
+  .btn.ok { background:var(--green); color:#fff; border-color:var(--green); }
+  .btn.danger { color:var(--red); border-color:#fecaca; } .btn.danger:hover { background:#fef2f2; }
+  .btn.sm { padding:4px 10px; font-size:13px; } .btn.lg { padding:11px 20px; font-size:15px; }
+  .btn.ghost { border-color:transparent; background:transparent; } .btn.ghost:hover { background:#f3f4f6; }
+  .btn[disabled] { opacity:.5; pointer-events:none; }
+
+  .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap; border:1px solid transparent; }
+  .chip::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .chip.nodot::before { display:none; }
+  .c-gray { background:#f3f4f6; color:#4b5563; } .c-blue { background:#eff6ff; color:#1d4ed8; } .c-cyan { background:#ecfeff; color:#0e7490; }
+  .c-amber { background:#fffbeb; color:#b45309; } .c-purple { background:#f5f3ff; color:#6d28d9; } .c-green { background:#f0fdf4; color:#15803d; }
+  .c-slate { background:#f1f5f9; color:#334155; } .c-red { background:#fef2f2; color:#b91c1c; } .c-teal { background:#f0fdfa; color:#0f766e; }
+  .c-pink { background:#fdf2f8; color:#be185d; } .c-black { background:#000; color:#fff; }
+
+  table.t { width:100%; border-collapse:collapse; }
+  table.t th { text-align:start; font-size:12px; color:var(--muted); font-weight:600; padding:10px 12px; background:#fafafa; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.t td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  table.t tr:last-child td { border-bottom:0; }
+  table.t tr.click { cursor:pointer; } table.t tr.click:hover td { background:#fafafa; }
+  table.t tr.urgent td:first-child { box-shadow:inset -3px 0 0 var(--red); }
+  .tbl-wrap { overflow-x:auto; }
+  .empty { text-align:center; padding:34px 10px; color:var(--muted); }
+  .empty svg { width:42px; height:42px; opacity:.35; display:block; margin:0 auto 8px; }
+
+  /* ---------- KPI */
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:16px; box-shadow:var(--shadow); cursor:pointer; position:relative; overflow:hidden; }
+  .kpi:hover { border-color:#9ca3af; }
+  .kpi .l { color:var(--muted); font-size:12.5px; font-weight:600; } .kpi .v { font-size:28px; font-weight:700; margin-top:4px; }
+  .kpi::after { content:""; position:absolute; inset:0 0 auto auto; width:4px; height:100%; background:var(--k, #000); }
+  .bar { display:flex; height:12px; border-radius:6px; overflow:hidden; background:#f3f4f6; }
+  .bar > div { height:100%; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:12.5px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; cursor:pointer; } .legend i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .hbar { display:flex; align-items:center; gap:10px; margin:7px 0; font-size:13px; } .hbar .lb { width:120px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hbar .tr { flex:1; height:9px; background:#f3f4f6; border-radius:5px; overflow:hidden; } .hbar .tr div { height:100%; background:#000; border-radius:5px; }
+
+  /* ---------- tabs, steps, timeline */
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px; overflow-x:auto; scrollbar-width:none; }
+  .tabs a { padding:10px 14px; cursor:pointer; color:var(--muted); font-weight:600; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+  .tabs a.on { color:#000; border-color:#000; } .tabs a .n { background:#f3f4f6; border-radius:9px; padding:0 7px; font-size:11px; margin-inline-start:4px; color:var(--ink2); }
+  .steps { display:flex; align-items:center; gap:0; margin:14px 0 4px; overflow-x:auto; }
+  .steps .s { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
+  .steps .s i { width:24px; height:24px; border-radius:50%; border:2px solid var(--line2); display:grid; place-items:center; font-style:normal; font-size:11px; font-weight:700; background:#fff; }
+  .steps .s.done i { background:#000; border-color:#000; color:#fff; } .steps .s.done { color:var(--ink); }
+  .steps .s.cur i { border-color:#000; color:#000; box-shadow:0 0 0 4px #e5e7eb; } .steps .s.cur { color:#000; font-weight:700; }
+  .steps .ln { flex:1; min-width:18px; height:2px; background:var(--line2); margin:0 8px; } .steps .ln.done { background:#000; }
+  .kv { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px 20px; }
+  .kv > div > span { display:block; font-size:12px; color:var(--muted); margin-bottom:2px; } .kv b { font-weight:600; }
+  .tl { position:relative; padding-inline-start:26px; }
+  .tl::before { content:""; position:absolute; inset:6px 8px 6px auto; width:2px; background:var(--line); }
+  .tl .it { position:relative; margin-bottom:16px; }
+  .tl .it::before { content:""; position:absolute; right:-23px; top:5px; width:12px; height:12px; border-radius:50%; background:#fff; border:3px solid var(--dot, #000); }
+  .note { background:#fafafa; border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .note .h { display:flex; gap:8px; align-items:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .note p { margin:0; white-space:pre-wrap; }
+  .alert { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:10px; border:1px solid; margin-bottom:14px; }
+  .alert svg { width:20px; height:20px; flex-shrink:0; margin-top:1px; }
+  .alert.warn { background:#fffbeb; border-color:#fde68a; color:#92400e; } .alert.info { background:#eff6ff; border-color:#bfdbfe; color:#1e40af; }
+  .alert.ok { background:#f0fdf4; border-color:#bbf7d0; color:#166534; } .alert.err { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+  .alert.new { background:#000; border-color:#000; color:#fff; }
+  .money { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); } .money:last-child { border:0; }
+  .money.tot { font-weight:700; font-size:16px; border-bottom:2px solid #000; } .money.bal b { color:var(--red); }
+
+  .seg { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+  .seg label { cursor:pointer; } .seg input { display:none; }
+  .seg span { display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border:1px solid var(--line2); border-radius:8px; background:#fff; font-weight:500; font-size:13px; }
+  .seg input:checked + span { background:#000; color:#fff; border-color:#000; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .tags button { border:1px dashed var(--line2); background:#fff; border-radius:999px; padding:2px 10px; font-size:12px; cursor:pointer; }
+  .tags button:hover { border-color:#000; }
+  .thumbs { display:flex; gap:10px; flex-wrap:wrap; }
+  .thumbs img { width:120px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:zoom-in; }
+  .drop { border:2px dashed var(--line2); border-radius:10px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; background:#fafafa; }
+  .drop:hover { border-color:#000; color:#000; }
+  .pager { display:flex; align-items:center; gap:8px; padding:10px 14px; border-top:1px solid var(--line); font-size:13px; }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .filters select, .filters input { padding:7px 10px; border:1px solid var(--line2); border-radius:8px; background:#fff; }
+  .pills { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .pills a { padding:5px 12px; border-radius:999px; border:1px solid var(--line2); background:#fff; cursor:pointer; font-size:12.5px; font-weight:600; display:inline-flex; gap:6px; align-items:center; }
+  .pills a.on { background:#000; color:#fff; border-color:#000; }
+  .pills a .n { opacity:.65; font-weight:500; }
+  .devhead { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .devhead .ic { width:64px; height:64px; border-radius:14px; background:#000; color:#fff; display:grid; place-items:center; }
+  .devhead .ic svg { width:34px; height:34px; }
+  .bigsearch { display:flex; gap:8px; } .bigsearch input { flex:1; padding:13px 16px; font-size:17px; border:2px solid #000; border-radius:10px; }
+
+  /* ---------- modal + toast */
+  .modal-bg { position:fixed; inset:0; background:rgba(10,10,10,.55); z-index:100; display:flex; align-items:flex-start; justify-content:center; padding:6vh 14px; overflow:auto; animation:fade .15s; }
+  .modal { background:#fff; border-radius:14px; width:100%; max-width:560px; box-shadow:var(--shadow2); animation:pop .18s; }
+  .modal.wide { max-width:820px; }
+  .modal .mh { display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .modal .mh h3 { margin:0; font-size:16px; flex:1; }
+  .modal .mb { padding:18px 20px; display:grid; gap:14px; }
+  .modal .mf { display:flex; gap:8px; justify-content:flex-start; padding:14px 20px; border-top:1px solid var(--line); background:#fafafa; border-radius:0 0 14px 14px; }
+  .x { border:0; background:transparent; cursor:pointer; font-size:22px; line-height:1; color:var(--muted); padding:0 4px; }
+  @keyframes fade { from { opacity:0; } } @keyframes pop { from { transform:translateY(10px) scale(.98); opacity:0; } }
+  #toasts { position:fixed; bottom:20px; left:20px; z-index:200; display:flex; flex-direction:column; gap:8px; }
+  .toast { background:#000; color:#fff; padding:11px 16px; border-radius:10px; box-shadow:var(--shadow2); display:flex; gap:10px; align-items:center; animation:pop .2s; max-width:380px; }
+  .toast.err { background:var(--red); } .toast.ok::before { content:"✓"; color:#4ade80; font-weight:700; }
+  .menu { position:relative; display:inline-block; }
+  .menu .dd { position:absolute; top:calc(100% + 4px); left:0; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow2); min-width:220px; z-index:30; padding:6px; }
+  .menu .dd a { display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:6px; cursor:pointer; } .menu .dd a:hover { background:#f3f4f6; }
+  .lightbox { position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:300; display:grid; place-items:center; cursor:zoom-out; }
+  .lightbox img { max-width:94vw; max-height:92vh; border-radius:6px; }
+  .spin { width:28px; height:28px; border:3px solid #e5e7eb; border-top-color:#000; border-radius:50%; animation:sp .7s linear infinite; margin:40px auto; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+
+  /* ---------- print */
+  #print-area { display:none; }
   @media print {
-    @page { size:50mm 30mm; margin:0; }
-    header, main, #login { display:none !important; }
-    html, body { width:50mm; height:30mm; margin:0; overflow:hidden; background:#fff; }
-    #label { display:block; overflow:hidden; width:50mm; height:30mm; padding:1.5mm 2mm; direction:ltr; font:8pt/1.2 Tahoma, sans-serif; color:#000; }
-    #label .big { font-size:11pt; font-weight:bold; }
-    #label svg { width:46mm; height:8mm; display:block; }
+    #login, #app, #toasts, .modal-bg { display:none !important; }
+    body { background:#fff; }
+    body.p-label, html:has(body.p-label) { width:50mm; height:30mm; overflow:hidden; }
+    body.p-label #print-area { display:block; overflow:hidden; width:50mm; height:30mm; padding:1.5mm 2mm; direction:ltr; font:8pt/1.2 Tahoma, sans-serif; color:#000; }
+    body.p-label .big { font-size:11pt; font-weight:bold; }
+    body.p-label svg { width:46mm; height:8mm; display:block; }
+    body.p-doc #print-area { display:block; font:10pt/1.5 Tahoma, sans-serif; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .doc { break-after:page; } .doc:last-child { break-after:auto; }
+    .doc .hd { display:flex; align-items:center; gap:5mm; border-bottom:3px solid #000; padding-bottom:3mm; }
+    .doc .hd img { width:22mm; height:22mm; }
+    .doc .hd .co { flex:1; } .doc .hd .co b { font-size:17pt; display:block; } .doc .hd .co span { font-size:9.5pt; color:#444; display:block; }
+    .doc .hd .no { text-align:center; border:2px solid #000; border-radius:2mm; padding:1.5mm 3mm; direction:ltr; }
+    .doc .hd .no b { font-size:15pt; display:block; } .doc .hd .no span { font-size:8pt; }
+    .doc .title { display:flex; justify-content:space-between; align-items:center; margin:4mm 0 3mm; }
+    .doc .title h1 { font-size:15pt; margin:0; }
+    .doc .tag { background:#000; color:#fff; padding:1mm 4mm; border-radius:1mm; font-size:10pt; }
+    .doc .bc { text-align:center; margin-bottom:3mm; } .doc .bc svg { width:70mm; height:11mm; margin:0 auto; display:block; }
+    .doc .bc div { direction:ltr; font-size:9pt; letter-spacing:1px; }
+    .doc h3 { font-size:10.5pt; margin:3mm 0 1.5mm; background:#000; color:#fff; padding:1mm 3mm; }
+    .doc table { border-collapse:collapse; width:100%; }
+    .doc th, .doc td { border:1px solid #777; padding:1.2mm 3mm; font-size:10pt; vertical-align:top; text-align:start; }
+    .doc table.kvt th { width:48mm; background:#eee; }
+    .doc table.lst th { background:#eee; }
+    .doc td.big { height:10mm; }
+    .doc .terms { font-size:8.5pt; margin:1mm 0 0; padding-inline-start:5mm; line-height:1.55; }
+    .doc .sign { display:grid; grid-template-columns:repeat(3,1fr); gap:5mm; margin-top:5mm; }
+    .doc .sign > div { border:1px solid #777; padding:2mm 3mm; font-size:9pt; }
+    .doc .sign b { display:block; text-align:center; margin-bottom:2mm; font-size:10pt; }
+    .doc .sign p { margin:0 0 3.5mm; border-bottom:1px dotted #777; padding-bottom:.5mm; }
+    .doc .sign .stamp { height:15mm; border:1px dashed #999; display:flex; align-items:center; justify-content:center; color:#999; font-size:8pt; }
+    .doc .ft { margin-top:3mm; border-top:1px solid #000; padding-top:1.5mm; font-size:8pt; color:#444; display:flex; justify-content:space-between; }
+    .doc .tot td { font-weight:bold; }
+    .doc.compact .bc { display:none; } .doc.compact .sign p { margin-bottom:3mm; } .doc.compact .title { margin:3mm 0 1mm; }
+    .doc .sign { break-inside:avoid; }
   }
 </style>
 </head>
 <body>
-<header class="hidden" id="top">
-  <b>ورشة الصيانة</b>
-  <button onclick="go('list')">التذاكر</button>
-  <button id="nav-new" onclick="go('new')">+ استلام جهاز</button>
-  <button id="nav-users" onclick="go('users')">المستخدمين والإعدادات</button>
-  <span id="me" class="muted" style="color:#cbd"></span>
-  <button onclick="logout()">خروج</button>
-</header>
 
-<div id="login" class="card hidden">
-  <h2>تسجيل الدخول</h2>
-  <label>اسم المستخدم<input id="lu" autofocus></label>
-  <label>كلمة المرور<input id="lp" type="password"></label>
-  <div class="err" id="lerr"></div>
-  <button class="pri" onclick="login()">دخول</button>
+<div id="login" class="hidden">
+  <div class="brand"><img src="/rt-logo.jpg" alt="RT"><h1 id="lg-name">RT — قسم الصيانة</h1><p id="lg-sub">مركز صيانة الأجهزة</p></div>
+  <div class="form"><div id="login-form">
+    <h2>تسجيل الدخول</h2><p class="muted" style="margin:0 0 20px">ادخل ببيانات حسابك</p>
+    <div class="grid">
+      <label class="f">اسم المستخدم<input id="lu" autocomplete="username"></label>
+      <label class="f">كلمة المرور<input id="lp" type="password" autocomplete="current-password"></label>
+      <div id="lerr" class="alert err hidden"></div>
+      <button class="btn pri lg" onclick="login()" style="justify-content:center">دخول</button>
+    </div>
+  </div>
+  <div id="setup-form" class="hidden" style="max-width:420px">
+    <h2>أهلاً بيك 👋 — أول تشغيل</h2><p class="muted" style="margin:0 0 18px">اعمل حساب مدير النظام. الحساب ده هيقدر يعمل باقي المستخدمين ويغيّر الإعدادات.</p>
+    <div class="grid">
+      <label class="f">اسم الشركة / القسم (بيظهر في الإيصالات)<input id="su-company" value="RT — قسم الصيانة"></label>
+      <label class="f req">اسمك بالكامل<input id="su-name" autocomplete="name"></label>
+      <label class="f req">اسم الدخول<input id="su-user" class="mono" autocomplete="username"></label>
+      <div class="grid g2"><label class="f req">كلمة المرور (6 حروف على الأقل)<input id="su-pw" type="password" autocomplete="new-password"></label>
+        <label class="f req">اكتبها تاني<input id="su-pw2" type="password" autocomplete="new-password"></label></div>
+      <div id="suerr" class="alert err hidden"></div>
+      <button class="btn pri lg" onclick="doSetup()" style="justify-content:center">إنشاء الحساب والدخول</button>
+    </div>
+  </div></div>
 </div>
 
-<main id="view"></main>
-<div id="label"></div>
+<div id="app" class="hidden">
+  <aside>
+    <div class="logo"><img src="/rt-logo.jpg" alt="RT"><div><b>RT Workshop</b><span>قسم الصيانة</span></div></div>
+    <nav id="nav"></nav>
+    <div class="me"><b id="me-name"></b><span id="me-role"></span>
+      <div class="row"><button onclick="changePw()">كلمة المرور</button><button onclick="logout()">خروج</button></div></div>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <button class="btn ghost burger" onclick="document.body.classList.toggle('nav-open')">☰</button>
+      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="gs" placeholder="ابحث بالسيريال أو رقم التذكرة أو اسم/موبايل العميل..."><kbd>Ctrl K</kbd></div>
+      <span class="sp"></span>
+      <button id="top-new" class="btn pri" onclick="nav('new')">+ استلام جهاز</button>
+    </div>
+    <div id="view"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="print-area"></div>
 
 <script>
+// ================= constants
 const ST = {received:'مستلم', assigned:'متعيّن لفني', in_repair:'تحت الصيانة', waiting_customer:'مستني موافقة العميل',
-  repaired:'تم الإصلاح', delivered:'اتسلم للعميل', rejected:'مرفوض / مرتجع'};
+  waiting_parts:'مستني قطع غيار', repaired:'جاهز للتسليم', delivered:'اتسلم للعميل', rejected:'مرفوض / مرتجع'};
+const ST_C = {received:'gray', assigned:'blue', in_repair:'cyan', waiting_customer:'amber', waiting_parts:'purple', repaired:'green', delivered:'slate', rejected:'red'};
+const ST_HEX = {received:'#9ca3af', assigned:'#2563eb', in_repair:'#0891b2', waiting_customer:'#d97706', waiting_parts:'#7c3aed', repaired:'#16a34a', delivered:'#475569', rejected:'#dc2626'};
+const OPEN = ['received','assigned','in_repair','waiting_customer','waiting_parts'];
+const TYPES = {setup:'تهيئة أول مرة', repair:'صيانة', warranty:'ضمان', inspection:'فحص', maintenance:'صيانة دورية'};
+const TYPE_C = {setup:'teal', repair:'blue', warranty:'pink', inspection:'gray', maintenance:'purple'};
 const ROLE = {admin:'مدير النظام', manager:'مدير الورشة', reception:'استقبال', technician:'فني صيانة'};
+const PAY = {cash:'كاش', card:'فيزا', transfer:'تحويل بنكي', wallet:'محفظة إلكترونية'};
+const KIND = {maintenance:'صيانة', inspection:'فحص', setup:'تهيئة', note:'ملاحظة'};
+const APPROVAL = {none:'', pending:'مستني رد العميل', approved:'العميل وافق', rejected:'العميل رفض'};
 const ERR = {bad_login:'اسم المستخدم أو كلمة المرور غلط', forbidden:'مش مسموح لك بالعملية دي', 'missing:serial':'السيريال مطلوب',
-  'missing:customer_name':'اسم العميل مطلوب', 'missing:name':'اسم القطعة مطلوب', 'missing:text':'اكتب وصف الشغل',
+  'missing:customer_name':'اسم العميل مطلوب', 'missing:name':'الاسم مطلوب', 'missing:text':'اكتب الوصف', 'missing:diagnosis':'اكتب التشخيص',
+  'missing:full_name':'الاسم بالكامل مطلوب', 'missing:username':'اسم الدخول مطلوب',
   username_taken:'اسم المستخدم موجود قبل كده', short_password:'كلمة المرور لازم 4 حروف على الأقل', no_printer_ip:'اكتب IP الطابعة من الإعدادات',
-  printer_unreachable:'الطابعة مش بترد - اتأكد إنها شغالة والـ IP صح', photo_too_large:'الصورة أكبر من 8 ميجا', bad_old_password:'كلمة المرور القديمة غلط'};
-let ME = null, USERS = [];
+  printer_unreachable:'الطابعة مش بترد - اتأكد إنها شغالة والـ IP صح', photo_too_large:'الصورة أكبر من 8 ميجا', bad_old_password:'كلمة المرور القديمة غلط',
+  bad_number:'الرقم مش مظبوط', ticket_closed:'التذكرة دي مقفولة', not_repaired:'الجهاز لسه مش جاهز للتسليم', device_not_found:'السيريال ده مادخلش الورشة قبل كده',
+  backup_failed:'النسخة الاحتياطية فشلت', db_down:'قاعدة البيانات مش شغالة - شغّل start.bat تاني', cant_demote_self:'مينفعش توقف حسابك أو تشيل صلاحية المدير منه',
+  bad_date:'التاريخ مش مظبوط', not_found:'مش موجود', no_photos:'اختار صور الأول', too_large:'الملفات كبيرة أوي',
+  short_password_admin:'كلمة مرور مدير النظام لازم 6 حروف على الأقل', same_password:'كلمة المرور الجديدة لازم تبقى مختلفة عن القديمة',
+  must_change_pw:'لازم تغيّر كلمة المرور الأول', confirm_mismatch:'رقم التذكرة اللي كتبته مش مطابق', already_setup:'البرنامج متجهّز قبل كده — سجّل دخول'};
+const IC = {
+  dash:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  dev:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20M9 16v4M15 16v4"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  cog:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  warn:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  star:'<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
+  print:'<path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/>',
+  wa:'<path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.5A8.4 8.4 0 1 1 21 11.5z"/>',
+  box:'<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+};
+const icon = (n, s = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${s}>${IC[n]}</svg>`;
+
+// ================= helpers
+let ME = null, USERS = [], CFG = {};
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const badge = s => `<span class="badge s-${s}">${ST[s]||s}</span>`;
+const chip = (txt, c, extra = '') => `<span class="chip c-${c} ${extra}">${esc(txt)}</span>`;
+const stChip = s => chip(ST[s] || s, ST_C[s] || 'gray');
+const typeChip = t => chip(TYPES[t] || t, TYPE_C[t] || 'gray', 'nodot');
 const isMgr = () => ['admin','manager'].includes(ME.role);
+const isFront = () => ['admin','manager','reception'].includes(ME.role);
+const isTech = () => ME.role === 'technician';
+const fmtD = s => s ? String(s).slice(0, 16) : '—';
+const day = s => s ? String(s).slice(0, 10) : '—';
+const cur = () => CFG.currency || 'ج.م';
+const money = n => `<span class="num">${Number(n || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span> ${esc(cur())}`;
+const devName = t => [t.device_type, t.brand, t.model].filter(Boolean).join(' ') || '—';
+const ago = s => { if (!s) return ''; const d = (Date.now() - new Date(String(s).replace(' ', 'T'))) / 864e5;
+  return d < 1 ? 'النهارده' : d < 2 ? 'إمبارح' : `من ${Math.floor(d)} يوم`; };
+const qs = o => Object.entries(o).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
 
 async function api(path, body) {
   const r = await fetch('/api/' + path, body === undefined ? {} :
     {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const j = await r.json().catch(() => ({}));
   if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('login'); }
-  if (!r.ok) { const m = ERR[j.error] || ('خطأ: ' + (j.error || r.status)); alert(m); throw new Error(m); }
+  if (!r.ok) {
+    const e = new Error(ERR[j.error] || ('حصل خطأ: ' + (j.error || r.status))); e.code = j.error; e.status = r.status; throw e;
+  }
   return j;
 }
-function showLogin() { ME = null; $('#top').classList.add('hidden'); $('#view').innerHTML = ''; $('#login').classList.remove('hidden'); }
-async function login() {
-  try { await api('login', {username:$('#lu').value, password:$('#lp').value}); $('#lerr').textContent=''; boot(); }
-  catch (e) { $('#lerr').textContent = e.message; }
+// run an action, show its error as a toast, and return null on failure
+async function act(fn, okMsg) {
+  try { const r = await fn(); if (okMsg) toast(okMsg); return r ?? true; }
+  catch (e) { if (e.message !== 'login') toast(e.message, 'err'); return null; }
 }
-$('#lp').addEventListener('keydown', e => e.key === 'Enter' && login());
-async function logout() { await api('logout', {}); showLogin(); }
-
-async function boot() {
-  try { ME = await api('me'); } catch { return; }
-  $('#login').classList.add('hidden'); $('#top').classList.remove('hidden');
-  $('#me').textContent = `${ME.full_name} (${ROLE[ME.role]})`;
-  $('#nav-new').classList.toggle('hidden', ME.role === 'technician');
-  $('#nav-users').classList.toggle('hidden', ME.role !== 'admin');
-  USERS = await api('users');
-  go('list');
+function toast(msg, kind = 'ok') {
+  const el = document.createElement('div'); el.className = 'toast ' + kind; el.textContent = msg;
+  $('#toasts').appendChild(el); setTimeout(() => el.remove(), kind === 'err' ? 5000 : 2800);
 }
-function go(v, id) { ({list:viewList, new:viewNew, ticket:viewTicket, users:viewUsers})[v](id); }
 
-function readPhotos(input) {   // resize to max 1600px so the DB folder stays small
-  return Promise.all([...input.files].map(f => new Promise(res => {
+// Modal: fields HTML + onSubmit(form) -> close when it resolves truthy.
+function modal({title, body, ok = 'حفظ', okClass = 'pri', wide = false, onOk, foot = ''}) {
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal ${wide ? 'wide' : ''}" role="dialog"><div class="mh"><h3>${title}</h3><button class="x" data-x>×</button></div>
+    <form class="mb">${body}</form>
+    <div class="mf">${onOk ? `<button class="btn ${okClass}" data-ok>${ok}</button>` : ''}<button class="btn" data-x>${onOk ? 'إلغاء' : 'قفل'}</button>${foot}</div></div>`;
+  const close = () => { bg.remove(); document.removeEventListener('keydown', esc_); };
+  const esc_ = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc_);
+  bg.addEventListener('mousedown', e => { if (e.target === bg) close(); });
+  bg.querySelectorAll('[data-x]').forEach(b => b.onclick = close);
+  const form = bg.querySelector('form');
+  const submit = async e => {
+    e?.preventDefault(); const btn = bg.querySelector('[data-ok]'); if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    try { if (await onOk(form, bg)) close(); } finally { btn.disabled = false; }
+  };
+  form.addEventListener('submit', submit);
+  if (onOk) bg.querySelector('[data-ok]').onclick = submit;
+  document.body.appendChild(bg);
+  setTimeout(() => form.querySelector('input:not([type=hidden]),select,textarea')?.focus(), 30);
+  return {el:bg, form, close};
+}
+const fv = (form, name) => form.elements[name]?.value?.trim() ?? '';
+function confirmBox(title, text, ok = 'تأكيد', danger = false) {
+  return new Promise(res => modal({title, body:`<p style="margin:0">${text}</p>`, ok, okClass: danger ? 'danger' : 'pri', onOk: async () => (res(true), true)})
+    .el.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => res(false))));
+}
+function lightbox(src) { const d = document.createElement('div'); d.className = 'lightbox'; d.innerHTML = `<img src="${src}">`; d.onclick = () => d.remove(); document.body.appendChild(d); }
+function readPhotos(files) {   // resize to max 1600px so the photos folder stays small
+  return Promise.all([...files].map(f => new Promise(res => {
     const img = new Image(); img.onload = () => {
       const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
       c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
@@ -116,145 +406,847 @@ function readPhotos(input) {   // resize to max 1600px so the DB folder stays sm
     }; img.src = URL.createObjectURL(f);
   })));
 }
+const spinner = () => '<div class="spin"></div>';
+const emptyBox = (txt, ic = 'box') => `<div class="empty">${icon(ic)}${txt}</div>`;
 
-// ---------- list
-async function viewList() {
-  $('#view').innerHTML = `<div class="card"><div class="row">
-    <input id="q" placeholder="ابحث بالسيريال أو رقم التذكرة أو اسم/موبايل العميل" style="flex:1;min-width:250px">
-    <select id="fs" style="width:200px"><option value="">كل الحالات</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
-    <button onclick="loadList()">بحث</button></div></div>
-    <div class="card"><table><thead><tr><th>#</th><th>السيريال</th><th>الجهاز</th><th>العميل</th><th>الحالة</th><th>الفني</th><th>دخل في</th></tr></thead>
-    <tbody id="rows"></tbody></table></div>`;
-  $('#q').addEventListener('keydown', e => e.key === 'Enter' && loadList());
-  $('#fs').onchange = loadList;
-  loadList();
+// ================= auth & shell
+function showLogin() {
+  ME = null; IDLE.stop(); document.querySelectorAll('.modal-bg').forEach(m => m.remove());
+  $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+  fetch('/api/company').then(r => r.json()).then(c => {
+    if (c.company_name) { $('#lg-name').textContent = c.company_name; $('#lg-sub').textContent = c.company_sub; }
+    $('#login-form').classList.toggle('hidden', !!c.needs_setup); $('#setup-form').classList.toggle('hidden', !c.needs_setup);
+    setTimeout(() => (c.needs_setup ? $('#su-name') : $('#lu')).focus(), 50);
+  }).catch(() => {});
 }
-async function loadList() {
-  const list = await api(`tickets?q=${encodeURIComponent($('#q').value)}&status=${$('#fs').value}`);
-  $('#rows').innerHTML = list.map(t => `<tr class="click" onclick="go('ticket',${t.id})"><td>${t.id}</td><td>${esc(t.serial)}</td>
-    <td>${esc([t.device_type,t.brand,t.model].filter(Boolean).join(' '))}</td><td>${esc(t.customer_name)}<div class="muted">${esc(t.customer_phone)}</div></td>
-    <td>${badge(t.status)}</td><td>${esc(t.assigned_to_name)||'<span class="muted">—</span>'}</td><td>${t.received_at.slice(0,16)}</td></tr>`).join('')
-    || '<tr><td colspan="7" class="muted">مفيش تذاكر</td></tr>';
-}
-
-// ---------- new ticket
-function viewNew() {
-  $('#view').innerHTML = `<div class="card"><h2>استلام جهاز جديد</h2>
-    <h3>العميل</h3><div class="grid">
-      <label>بحث عن عميل موجود<input id="cs" placeholder="اكتب اسم أو موبايل"></label>
-      <label>اسم العميل *<input id="cn"></label><label>موبايل العميل<input id="cp"></label></div>
-    <div id="csr" class="row"></div><input type="hidden" id="cid">
-    <h3>الجهاز</h3><div class="grid">
-      <label>السيريال * (اكتبه أو امسحه بالباركود)<input id="serial"></label>
-      <label>نوع الجهاز<input id="dt" placeholder="مثلاً: لابتوب، طابعة، UPS"></label>
-      <label>الماركة<input id="br"></label><label>الموديل<input id="md"></label></div>
-    <div id="prev" class="muted"></div>
-    <label>الإكسسوارات اللي جت معاه<input id="acc" placeholder="شاحن، شنطة، كابل..."></label>
-    <label>العطل حسب كلام العميل<textarea id="cmp"></textarea></label>
-    <label>صور الجهاز وقت الاستلام<input type="file" id="ph" accept="image/*" multiple></label>
-    <p class="muted">المستلم: ${esc(ME.full_name)} — بيتسجل تلقائي</p>
-    <button class="pri" onclick="createTicket()">حفظ وفتح التذكرة</button></div>`;
-  $('#cs').oninput = async e => {
-    const v = e.target.value.trim(); if (v.length < 2) { $('#csr').innerHTML=''; return; }
-    const cs = await api('customers?q=' + encodeURIComponent(v));
-    $('#csr').innerHTML = cs.map(c => `<button onclick='pickCust(${JSON.stringify(c)})'>${esc(c.name)} ${esc(c.phone)}</button>`).join('');
-  };
-  $('#serial').onchange = async e => {
-    const old = await api('tickets?q=' + encodeURIComponent(e.target.value.trim()));
-    const same = old.filter(t => t.serial === e.target.value.trim());
-    $('#prev').innerHTML = same.length ? `⚠ الجهاز ده دخل الورشة قبل كده: ${same.map(t=>`<a href="#" onclick="go('ticket',${t.id});return false">#${t.id}</a>`).join('، ')}` : '';
-  };
-  $('#cn').oninput = () => { $('#cid').value = ''; };
-}
-function pickCust(c) { $('#cid').value = c.id; $('#cn').value = c.name; $('#cp').value = c.phone || ''; $('#csr').innerHTML = ''; }
-async function createTicket() {
-  const photos = await readPhotos($('#ph'));
-  const r = await api('tickets', {customer_id:$('#cid').value || null, customer_name:$('#cn').value, customer_phone:$('#cp').value,
-    serial:$('#serial').value, device_type:$('#dt').value, brand:$('#br').value, model:$('#md').value,
-    accessories:$('#acc').value, complaint:$('#cmp').value, photos});
-  go('ticket', r.id);
+async function doSetup() {
+  const err = m => { $('#suerr').textContent = m; $('#suerr').classList.remove('hidden'); };
+  $('#suerr').classList.add('hidden');
+  if ($('#su-pw').value !== $('#su-pw2').value) return err('كلمتين المرور مش زي بعض');
+  try {
+    await api('setup', {company_name:$('#su-company').value, full_name:$('#su-name').value, username:$('#su-user').value, password:$('#su-pw').value});
+    boot();
+  } catch (e) { err(e.message); }
 }
 
-// ---------- ticket
-async function viewTicket(id) {
-  const t = await api('tickets/' + id);
-  const canWork = isMgr() || (ME.role === 'technician' && t.assigned_to === ME.id);
-  const techs = USERS.filter(u => u.active && ['technician','manager','admin'].includes(u.role));
-  const thumbs = stage => t.photos.filter(p => p.stage === stage).map(p => `<img src="/photos/${p.file}" onclick="window.open(this.src)">`).join('') || '<span class="muted">مفيش صور</span>';
+// Auto sign-out after N minutes without mouse/keyboard (the server enforces the same limit).
+const IDLE = {
+  last: Date.now(), pinged: Date.now(), timer: null, warn: null,
+  start() {
+    this.stop(); this.last = this.pinged = Date.now();
+    this.timer = setInterval(() => this.tick(), 1000);
+  },
+  stop() { clearInterval(this.timer); this.timer = null; this.warn?.close(); this.warn = null; },
+  activity() {
+    if (!this.timer || this.warn) return;
+    this.last = Date.now();
+    if (Date.now() - this.pinged > 30000) { this.pinged = Date.now(); api('ping').catch(() => {}); }
+  },
+  tick() {
+    const limit = (ME?.idle_seconds || 180) * 1000, left = Math.ceil((limit - (Date.now() - this.last)) / 1000);
+    if (left <= 0) { this.stop(); logout().then(() => toast('خرجت تلقائي عشان مفيش استخدام', 'err')); return; }
+    if (left <= 30 && !this.warn) {
+      this.warn = modal({title:'لسه موجود؟', body:`<p style="margin:0">مفيش استخدام من فترة. هتخرج تلقائي خلال <b id="idle-left" class="num">${left}</b> ثانية.</p>`,
+        ok:'أيوه، لسه شغال', onOk: async () => { this.warn = null; this.last = this.pinged = Date.now(); await api('ping').catch(() => {}); return true; }});
+      this.warn.el.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => { this.warn = null; this.last = Date.now(); }));
+    }
+    const el = document.getElementById('idle-left'); if (el) el.textContent = left;
+  },
+};
+['mousemove','mousedown','keydown','scroll','touchstart','wheel'].forEach(ev => document.addEventListener(ev, () => IDLE.activity(), {passive:true, capture:true}));
+async function login() {
+  $('#lerr').classList.add('hidden');
+  try { await api('login', {username:$('#lu').value, password:$('#lp').value}); $('#lp').value = ''; boot(); }
+  catch (e) { $('#lerr').textContent = e.message; $('#lerr').classList.remove('hidden'); }
+}
+$('#lp').addEventListener('keydown', e => e.key === 'Enter' && login());
+$('#lu').addEventListener('keydown', e => e.key === 'Enter' && $('#lp').focus());
+async function logout() { await api('logout', {}).catch(() => {}); location.hash = ''; showLogin(); }
+
+async function boot() {
+  try { ME = await api('me'); } catch { return; }
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#me-name').textContent = ME.full_name; $('#me-role').textContent = ROLE[ME.role];
+  $('#top-new').classList.toggle('hidden', !isFront());
+  IDLE.start();
+  if (ME.must_change_pw) return forcePwChange();
+  [USERS, CFG] = await Promise.all([api('users'), api('settings')]);
+  buildNav(); route();
+}
+function forcePwChange() {
+  $('#view').innerHTML = ''; $('#nav').innerHTML = '';
+  const m = modal({title:'لازم تغيّر كلمة المرور', body:`<div class="alert warn">${icon('warn')}<div>حسابك لسه بكلمة المرور الافتراضية. غيّرها عشان محدش غيرك يقدر يدخل بيه.</div></div>
+    <label class="f">كلمة المرور الحالية<input name="o" type="password" autocomplete="current-password"></label>
+    <label class="f">الجديدة (${ME.role === 'admin' ? '6' : '4'} حروف على الأقل)<input name="n" type="password" autocomplete="new-password"></label>
+    <label class="f">اكتب الجديدة تاني<input name="n2" type="password" autocomplete="new-password"></label>`,
+    ok:'تغيير ودخول', foot:'<span class="sp"></span><button class="btn ghost" type="button" onclick="logout()">خروج</button>', onOk: async f => {
+      if (f.elements.n.value !== f.elements.n2.value) return toast('كلمتين المرور الجداد مش زي بعض', 'err');
+      const r = await act(() => api('me/password', {old:f.elements.o.value, new:f.elements.n.value}), 'كلمة المرور اتغيرت');
+      if (r) setTimeout(boot, 50);
+      return r;
+    }});
+  m.el.querySelectorAll('.mh [data-x], .mf [data-x]').forEach(b => b.remove());
+  m.el.onmousedown = null;
+}
+function buildNav() {
+  const items = [['dashboard','لوحة التحكم','dash'], ['tickets', isTech() ? 'أجهزتي' : 'التذاكر','list']];
+  if (isFront()) items.push(['new','استلام جهاز','plus']);
+  if (!isTech()) items.push(['device','ملف الجهاز (بحث بالسيريال)','dev'], ['customers','العملاء','users']);
+  if (isMgr()) items.push(['reports','التقارير','chart']);
+  if (ME.role === 'admin') items.push(['settings','الإعدادات والمستخدمين','cog']);
+  $('#nav').innerHTML = items.map(([k, t, i]) => `<a data-k="${k}" href="#/${k}">${icon(i)}<span>${t}</span></a>`).join('');
+}
+function nav(path) { location.hash = '#/' + path; }
+window.addEventListener('hashchange', route);
+function route() {
+  if (!ME) return;
+  document.body.classList.remove('nav-open');
+  const [v, ...rest] = location.hash.replace(/^#\/?/, '').split('/');
+  const arg = rest.length ? decodeURIComponent(rest.join('/')) : '';
+  const views = {dashboard:viewDash, tickets:viewTickets, ticket:viewTicket, new:viewNew, device:viewDevice, customers:viewCustomers,
+    customer:viewCustomer, reports:viewReports, settings:viewSettings};
+  const fn = views[v] || viewDash;
+  const navKey = {ticket:'tickets', customer:'customers'}[v] || v || 'dashboard';
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.k === navKey));
+  $('#view').innerHTML = spinner(); window.scrollTo(0, 0);
+  fn(arg).catch(e => { if (e.message !== 'login') $('#view').innerHTML = `<div class="alert err">${icon('warn')}<div>${esc(e.message)}</div></div>`; });
+}
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#gs').focus(); $('#gs').select(); }
+});
+$('#gs').addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim(); if (!v) return;
+  if (/^#?\d{1,7}$/.test(v)) {
+    const ok = await api('tickets/' + v.replace('#', '')).then(() => true).catch(() => false);
+    if (ok) { e.target.value = ''; return nav('ticket/' + v.replace('#', '')); }
+  }
+  if (!isTech()) {
+    const dev = await api('devices/' + encodeURIComponent(v)).catch(() => null);
+    if (dev) { e.target.value = ''; return nav('device/' + encodeURIComponent(v)); }
+  }
+  nav('tickets/' + encodeURIComponent(v));
+});
+
+// ================= dashboard
+async function viewDash() {
+  const d = await api('dashboard');
+  const total = Object.values(d.by_status).reduce((a, b) => a + b, 0) || 1;
+  const k = (l, v, c, go) => `<div class="kpi" style="--k:${c}" onclick="nav('${go}')"><div class="l">${l}</div><div class="v num">${v}</div></div>`;
   $('#view').innerHTML = `
-  <div class="card"><div class="row"><h2 style="margin:0">تذكرة #${t.id}</h2>${badge(t.status)}
-    <span style="margin-inline-start:auto"></span><button class="pri" onclick="printLabel(${t.id})">🖨 طباعة استيكر</button>
-    <button onclick="printZebra(${t.id})">إرسال للزيبرا مباشرة (شبكة)</button></div>
-    <div class="grid" style="margin-top:12px">
-      <div><span class="muted">السيريال</span><br><b>${esc(t.serial)}</b></div>
-      <div><span class="muted">الجهاز</span><br>${esc([t.device_type,t.brand,t.model].filter(Boolean).join(' ')) || '—'}</div>
-      <div><span class="muted">العميل</span><br>${esc(t.customer_name)} ${esc(t.customer_phone)}</div>
-      <div><span class="muted">دخل في</span><br>${t.received_at}</div>
-      <div><span class="muted">استلمه</span><br>${esc(t.received_by_name)}</div>
-      <div><span class="muted">الفني</span><br>${esc(t.assigned_to_name) || '<span class="muted">لسه ماتعيّنش</span>'}</div>
-      <div><span class="muted">الإكسسوارات</span><br>${esc(t.accessories) || '—'}</div>
-      <div><span class="muted">إجمالي قطع الغيار</span><br><b>${t.total.toFixed(2)}</b></div></div>
-    <p><span class="muted">العطل حسب العميل:</span> ${esc(t.complaint) || '—'}</p>
-    ${t.other_visits.length ? `<p class="muted">زيارات سابقة لنفس السيريال: ${t.other_visits.map(v=>`<a href="#" onclick="go('ticket',${v.id});return false">#${v.id}</a> (${v.received_at.slice(0,10)})`).join('، ')}</p>` : ''}
+  <div class="page-h"><div><h1>أهلاً ${esc(ME.full_name)} 👋</h1><div class="sub">${new Date().toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</div></div>
+</div>
+  <div class="grid g4" style="margin-bottom:16px">
+    ${k(isTech() ? 'أجهزتي المفتوحة' : 'أجهزة جوه الورشة', d.open, '#000', 'tickets//open')}
+    ${k('متأخرة عن ميعادها', d.overdue, 'var(--red)', 'tickets//overdue')}
+    ${k('مستعجلة', d.urgent, 'var(--pink)', 'tickets//urgent')}
+    ${k('مستنية موافقة العميل', d.waiting_approval, 'var(--amber)', 'tickets//approval')}
+    ${k('دخلت النهارده', d.in_today, 'var(--blue)', 'tickets')}
+    ${k('اتسلمت النهارده', d.out_today, 'var(--green)', 'tickets//delivered')}
+    ${d.revenue_month !== undefined ? k('تحصيل النهارده', money(d.revenue_today), 'var(--teal)', 'reports') + k('تحصيل الشهر', money(d.revenue_month), 'var(--purple)', 'reports') : ''}
   </div>
+  <div class="card"><div class="card-h"><h3>توزيع الأجهزة على الحالات</h3><span class="sp"></span><span class="muted small">${Object.values(d.by_status).reduce((a, b) => a + b, 0)} تذكرة</span></div>
+    <div class="bar">${Object.keys(ST).map(s => d.by_status[s] ? `<div style="width:${d.by_status[s] / total * 100}%;background:${ST_HEX[s]}" title="${ST[s]}: ${d.by_status[s]}"></div>` : '').join('')}</div>
+    <div class="legend">${Object.keys(ST).map(s => `<span onclick="nav('tickets//${s}')"><i style="background:${ST_HEX[s]}"></i>${ST[s]} <b class="num">${d.by_status[s] || 0}</b></span>`).join('')}</div></div>
+  <div class="cols">
+    <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>${icon('warn', 'style="width:18px;color:var(--amber)"')} محتاجة متابعة</h3></div>
+      <div class="tbl-wrap">${ticketTable(d.attention, true) || emptyBox('مفيش حاجة متأخرة أو مستعجلة 👌')}</div></div>
+    <div>
+      ${d.techs ? `<div class="card"><h3>شغل الفنيين</h3>${d.techs.map(t => `<div class="hbar"><span class="lb">${esc(t.full_name)}</span>
+        <div class="tr"><div style="width:${Math.min(100, t.open * 10)}%"></div></div><b class="num">${t.open}</b></div>`).join('') || '<p class="muted">مفيش فنيين لسه</p>'}
+        <p class="muted small" style="margin:8px 0 0">الرقم = الأجهزة المفتوحة عند كل فني</p></div>` : ''}
+      <div class="card"><h3>آخر حاجات اتعملت</h3>${d.activity.map(h => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)">
+        <a href="#/ticket/${h.ticket_id}"><b>#${h.ticket_id}</b></a> · ${esc(histText(h))}<div class="muted">${esc(h.user_name)} · ${fmtD(h.created_at)}</div></div>`).join('') || '<p class="muted">لسه مفيش</p>'}</div>
+    </div>
+  </div>`;
+}
 
-  <div class="card"><div class="row">
-    ${isMgr() ? `<label style="margin:0">تعيين فني<select id="as">${'<option value="">— اختار —</option>' + techs.map(u=>`<option value="${u.id}" ${u.id===t.assigned_to?'selected':''}>${esc(u.full_name)}</option>`).join('')}</select></label>
-      <button onclick="assign(${t.id})">تعيين</button>` : ''}
-    ${canWork ? `<label style="margin:0">تغيير الحالة<select id="ns">${Object.entries(ST).filter(([k])=>k!=='delivered'||ME.role!=='technician').map(([k,v])=>`<option value="${k}" ${k===t.status?'selected':''}>${v}</option>`).join('')}</select></label>
-      <input id="snote" placeholder="ملاحظة (اختياري) - مثلاً: محتاج موافقة على تغيير الشاشة 1500ج" style="flex:1;min-width:220px">
-      <button onclick="setStatus(${t.id})">حفظ الحالة</button>` : ''}
-  </div></div>
+function ticketTable(rows, compact = false) {
+  if (!rows.length) return '';
+  return `<table class="t"><thead><tr><th>#</th><th>السيريال</th><th>الجهاز</th>${compact ? '' : '<th>النوع</th>'}<th>العميل</th><th>الحالة</th><th>الفني</th><th>${compact ? 'التسليم' : 'دخل'}</th></tr></thead><tbody>
+    ${rows.map(t => `<tr class="click ${t.priority === 'urgent' && OPEN.includes(t.status) ? 'urgent' : ''}" onclick="nav('ticket/${t.id}')">
+      <td><b class="num">#${t.id}</b>${t.priority === 'urgent' ? ' <span title="مستعجل" style="color:var(--red)">●</span>' : ''}</td>
+      <td class="mono">${esc(t.serial)}</td><td>${esc(devName(t))}</td>
+      ${compact ? '' : `<td>${typeChip(t.intake_type)}${t.first_visit ? ' <span class="chip c-black nodot" title="أول مرة يدخل الورشة">جديد</span>' : ''}</td>`}
+      <td>${esc(t.customer_name)}<div class="muted small num">${esc(t.customer_phone)}</div></td>
+      <td>${stChip(t.status)}${t.approval === 'pending' ? `<div class="small" style="color:var(--amber)">${APPROVAL.pending}</div>` : ''}</td>
+      <td>${esc(t.assigned_to_name) || '<span class="muted">لسه</span>'}</td>
+      <td class="small">${compact ? (t.due_at ? `<span style="${t.overdue ? 'color:var(--red);font-weight:700' : ''}">${day(t.due_at)}</span>` : '—') : `${day(t.received_at)}<div class="muted">${ago(t.received_at)}</div>`}</td></tr>`).join('')}
+  </tbody></table>`;
+}
 
-  <div class="card"><h3>الصيانة اللي اتعملت</h3>
-    <table><tbody>${t.notes.map(n=>`<tr><td style="width:140px" class="muted">${n.created_at.slice(0,16)}<br>${esc(n.user_name)}</td><td><b>${n.kind==='inspection'?'فحص':'صيانة'}:</b> ${esc(n.text)}</td></tr>`).join('') || '<tr><td class="muted">لسه مفيش</td></tr>'}</tbody></table>
-    ${canWork ? `<div class="row" style="margin-top:8px"><select id="nk" style="width:120px"><option value="maintenance">صيانة</option><option value="inspection">فحص</option></select>
-      <input id="nt" placeholder="اكتب اللي اتعمل في الجهاز" style="flex:1"><button onclick="addNote(${t.id})">إضافة</button></div>` : ''}
-
-    <h3>قطع الغيار</h3>
-    <table><thead><tr><th>القطعة</th><th>السيريال</th><th>الكمية</th><th>السعر</th><th>ركّبها</th><th></th></tr></thead><tbody>
-      ${t.parts.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.serial)||'—'}</td><td>${p.qty}</td><td>${p.price.toFixed(2)}</td><td class="muted">${esc(p.user_name)}<br>${p.created_at.slice(0,16)}</td>
-        <td>${isMgr()?`<button onclick="delPart(${t.id},${p.id})">حذف</button>`:''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">مفيش قطع غيار</td></tr>'}
-    </tbody></table>
-    ${canWork ? `<div class="row" style="margin-top:8px"><input id="pn" placeholder="اسم القطعة *" style="flex:2;min-width:160px">
-      <input id="psr" placeholder="سيريال القطعة (لو ليها)" style="flex:2;min-width:160px"><input id="pq" type="number" value="1" min="1" style="width:80px" title="الكمية">
-      <input id="pp" type="number" min="0" step="0.01" placeholder="السعر" style="width:110px"><button onclick="addPart(${t.id})">إضافة قطعة</button></div>` : ''}
+// ================= tickets list
+let LIST = {q:'', status:'', type:'', tech:'', priority:'', overdue:'', approval:'', offset:0};
+async function viewTickets(arg) {
+  const [q, preset] = (arg || '').split('/');
+  LIST = {q: q || '', status:'', type:'', tech:'', priority:'', overdue:'', approval:'', offset:0};
+  if (preset === 'open' || ST[preset]) LIST.status = preset;
+  if (preset === 'overdue') LIST.overdue = '1';
+  if (preset === 'urgent') { LIST.priority = 'urgent'; LIST.status = 'open'; }
+  if (preset === 'approval') LIST.approval = 'pending';
+  const techs = USERS.filter(u => ['technician','manager','admin'].includes(u.role));
+  $('#view').innerHTML = `
+  <div class="page-h"><h1>${isTech() ? 'الأجهزة المعيّنة ليا' : 'التذاكر'}</h1><span class="sp"></span>
+    ${isFront() ? `<button class="btn pri" onclick="nav('new')">${icon('plus')} استلام جهاز</button>` : ''}</div>
+  <div class="card">
+    <div class="filters">
+      <input id="fq" placeholder="سيريال، رقم تذكرة، عميل، موبايل، ماركة..." style="flex:1;min-width:220px" value="${esc(LIST.q)}">
+      <select id="ft"><option value="">كل الأنواع</option>${Object.entries(TYPES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+      ${isTech() ? '' : `<select id="ftech"><option value="">كل الفنيين</option><option value="none">لسه ماتعيّنش</option>${techs.map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}</select>`}
+      <select id="fp"><option value="">كل الأولويات</option><option value="urgent">مستعجل بس</option></select>
+      <label class="row small" style="cursor:pointer"><input type="checkbox" id="fo" ${LIST.overdue ? 'checked' : ''}> المتأخر بس</label>
+      <label class="row small" style="cursor:pointer"><input type="checkbox" id="fa" ${LIST.approval ? 'checked' : ''}> مستني موافقة</label>
+    </div>
+    <div class="pills" id="fs">${[['', 'الكل'], ['open', 'المفتوح'], ...Object.entries(ST)].map(([k, v]) => `<a data-s="${k}">${v}</a>`).join('')}</div>
   </div>
+  <div class="card flush"><div class="tbl-wrap" id="rows">${spinner()}</div><div class="pager" id="pager"></div></div>`;
+  $('#fp').value = LIST.priority;
+  const reload = () => { LIST.offset = 0; loadTickets(); };
+  let tm; $('#fq').oninput = () => { clearTimeout(tm); tm = setTimeout(() => { LIST.q = $('#fq').value.trim(); reload(); }, 300); };
+  $('#ft').onchange = e => { LIST.type = e.target.value; reload(); };
+  if ($('#ftech')) $('#ftech').onchange = e => { LIST.tech = e.target.value; reload(); };
+  $('#fp').onchange = e => { LIST.priority = e.target.value; reload(); };
+  $('#fo').onchange = e => { LIST.overdue = e.target.checked ? '1' : ''; reload(); };
+  $('#fa').onchange = e => { LIST.approval = e.target.checked ? 'pending' : ''; reload(); };
+  document.querySelectorAll('#fs a').forEach(a => a.onclick = () => { LIST.status = a.dataset.s; reload(); });
+  loadTickets();
+}
+async function loadTickets() {
+  document.querySelectorAll('#fs a').forEach(a => a.classList.toggle('on', a.dataset.s === LIST.status));
+  const r = await api('tickets?' + qs({...LIST, limit:50}));
+  $('#rows').innerHTML = ticketTable(r.rows) || emptyBox('مفيش تذاكر بالشروط دي');
+  const from = r.total ? LIST.offset + 1 : 0, to = Math.min(LIST.offset + 50, r.total);
+  $('#pager').innerHTML = `<span class="muted">عرض <b class="num">${from}–${to}</b> من <b class="num">${r.total}</b></span><span class="sp"></span>
+    <button class="btn sm" ${LIST.offset ? '' : 'disabled'} onclick="LIST.offset-=50;loadTickets()">السابق</button>
+    <button class="btn sm" ${to < r.total ? '' : 'disabled'} onclick="LIST.offset+=50;loadTickets()">التالي</button>`;
+}
 
-  <div class="card"><h3>صور الاستلام</h3><div class="thumbs">${thumbs('intake')}</div>
-    <h3>صور الصيانة / بعد الإصلاح</h3><div class="thumbs">${thumbs('repair')}</div>
-    ${canWork || ME.role==='reception' ? `<div class="row" style="margin-top:10px"><select id="pst" style="width:170px"><option value="repair">صور صيانة</option><option value="intake">صور استلام</option></select>
-      <input type="file" id="ph2" accept="image/*" multiple style="width:auto"><button onclick="addPhotos(${t.id})">رفع الصور</button></div>` : ''}
+// ================= new intake
+let NEW_PHOTOS = [];
+async function viewNew() {
+  if (!isFront()) return nav('dashboard');
+  NEW_PHOTOS = [];
+  const techs = USERS.filter(u => u.active && ['technician','manager','admin'].includes(u.role));
+  $('#view').innerHTML = `
+  <div class="page-h"><div><h1>استلام جهاز</h1><div class="sub">ابدأ بالسيريال — لو الجهاز دخل قبل كده هنجيب بياناته وتاريخه لوحدهم</div></div></div>
+  <div class="cols">
+  <div>
+    <div class="card"><h2>1. السيريال ونوع الدخول</h2>
+      <div class="bigsearch"><input id="n-serial" class="mono" placeholder="اكتب السيريال أو امسحه بالباركود" autocomplete="off"></div>
+      <div id="n-dev" style="margin-top:12px"></div>
+      <label class="f" style="margin-top:6px">نوع الدخول<div class="seg" id="n-type">${Object.entries(TYPES).map(([k, v], i) =>
+        `<label><input type="radio" name="itype" value="${k}" ${k === 'repair' ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div></label>
+    </div>
+    <div class="card"><h2>2. العميل</h2>
+      <label class="f">دوّر على عميل موجود<input id="n-cs" placeholder="اسم أو موبايل أو شركة..."></label>
+      <div id="n-csr" class="row" style="margin-top:8px"></div>
+      <input type="hidden" id="n-cid">
+      <div id="n-cpicked"></div>
+      <div class="grid g2" style="margin-top:12px" id="n-cfields">
+        <label class="f req">اسم العميل<input id="n-cn"></label><label class="f">الموبايل<input id="n-cp" inputmode="tel" class="num"></label>
+        <label class="f">موبايل تاني<input id="n-cp2" inputmode="tel" class="num"></label><label class="f">الشركة / الجهة<input id="n-cco"></label>
+      </div>
+    </div>
+    <div class="card"><h2>3. الجهاز والعطل</h2>
+      <div class="grid g3">
+        <label class="f">نوع الجهاز<input id="n-dt" list="dl-dt" placeholder="لابتوب، طابعة، UPS..."></label>
+        <label class="f">الماركة<input id="n-br" list="dl-br"></label><label class="f">الموديل<input id="n-md" list="dl-md"></label>
+      </div>
+      <datalist id="dl-dt"></datalist><datalist id="dl-br"></datalist><datalist id="dl-md"></datalist>
+      <label class="f" style="margin-top:12px">الإكسسوارات اللي جت معاه<input id="n-acc">
+        <div class="tags">${['شاحن','كابل باور','شنطة','ماوس','كيبورد','بطارية','كرتونة','ريموت','هارد'].map(a => `<button type="button" onclick="addAcc('${a}')">+ ${a}</button>`).join('')}</div></label>
+      <label class="f" style="margin-top:12px">حالة الجهاز الظاهرية<input id="n-cond" placeholder="مثلاً: خدش في الغطا، الشاشة سليمة..."></label>
+      <label class="f req" style="margin-top:12px">العطل حسب كلام العميل<textarea id="n-cmp"></textarea></label>
+      <label class="f" style="margin-top:12px">باسورد الجهاز (لو العميل ادّاه)<input id="n-pw" autocomplete="off"></label>
+    </div>
+    <div class="card"><h2>4. صور الاستلام</h2>
+      <div class="drop" onclick="$('#n-ph').click()">📷 دوس هنا عشان تختار صور (أو صوّر من الموبايل)</div>
+      <input type="file" id="n-ph" accept="image/*" multiple class="hidden">
+      <div class="thumbs" id="n-thumbs" style="margin-top:10px"></div>
+    </div>
   </div>
+  <div style="position:sticky;top:76px">
+    <div class="card"><h2>تفاصيل التذكرة</h2><div class="grid">
+      <label class="f">الأولوية<div class="seg"><label><input type="radio" name="prio" value="normal" checked><span>عادي</span></label>
+        <label><input type="radio" name="prio" value="urgent"><span style="color:inherit">🔴 مستعجل</span></label></div></label>
+      <label class="f">ميعاد التسليم المتوقع (بعد كام يوم)<input id="n-due" type="number" min="0" max="365" value="${esc(CFG.due_days || 3)}" class="num"></label>
+      ${isMgr() ? `<label class="f">عيّن فني على طول (اختياري)<select id="n-tech"><option value="">— بعدين —</option>${techs.map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('')}</select></label>` : ''}
+      <p class="muted small" style="margin:0">المستلم: <b>${esc(ME.full_name)}</b> — بيتسجل لوحده</p>
+      <button class="btn pri lg" id="n-save" onclick="createTicket()" style="justify-content:center">حفظ وفتح التذكرة</button>
+    </div></div>
+  </div></div>`;
+  for (const [id, f] of [['dl-dt','device_type'],['dl-br','brand'],['dl-md','model']])
+    api('suggest?field=' + f).then(v => { const el = $('#' + id); if (el) el.innerHTML = v.map(x => `<option value="${esc(x)}">`).join(''); }).catch(() => {});
+  $('#n-serial').focus();
+  $('#n-serial').addEventListener('change', lookupSerial);
+  $('#n-serial').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lookupSerial(); $('#n-cs').focus(); } });
+  let tm; $('#n-cs').oninput = e => { clearTimeout(tm); tm = setTimeout(async () => {
+    const v = e.target.value.trim(); if (v.length < 2) { $('#n-csr').innerHTML = ''; return; }
+    const cs = await api('customers?q=' + encodeURIComponent(v));
+    $('#n-csr').innerHTML = cs.map(c => `<button class="btn sm" onclick='pickCust(${JSON.stringify(c).replace(/'/g, "&#39;")})'>${esc(c.name)} <span class="muted num">${esc(c.phone)}</span></button>`).join('') || '<span class="muted small">مفيش نتايج — اكتب بيانات العميل الجديد تحت</span>';
+  }, 250); };
+  $('#n-cn').oninput = () => { if ($('#n-cid').value) { $('#n-cid').value = ''; $('#n-cpicked').innerHTML = ''; } };
+  $('#n-ph').onchange = async e => {
+    NEW_PHOTOS.push(...await readPhotos(e.target.files)); e.target.value = '';
+    $('#n-thumbs').innerHTML = NEW_PHOTOS.map((p, i) => `<div style="position:relative"><img src="${p}"><button class="btn sm danger" style="position:absolute;top:4px;left:4px;padding:0 7px" onclick="NEW_PHOTOS.splice(${i},1);$('#n-ph').onchange({target:{files:[],value:''}})">×</button></div>`).join('');
+  };
+}
+function addAcc(a) { const el = $('#n-acc'); el.value = el.value ? (el.value.includes(a) ? el.value : el.value + '، ' + a) : a; }
+function pickCust(c) {
+  $('#n-cid').value = c.id; $('#n-cn').value = c.name; $('#n-cp').value = c.phone || ''; $('#n-cp2').value = c.phone2 || ''; $('#n-cco').value = c.company || '';
+  $('#n-csr').innerHTML = '';
+  $('#n-cpicked').innerHTML = `<div class="alert info" style="margin:10px 0 0">${icon('info')}<div>عميل موجود: <b>${esc(c.name)}</b> — عنده ${c.tickets ?? ''} تذكرة قبل كده. <a href="#" onclick="$('#n-cid').value='';$('#n-cpicked').innerHTML='';return false">إلغاء الاختيار</a></div></div>`;
+}
+async function lookupSerial() {
+  const s = $('#n-serial').value.trim(); const box = $('#n-dev');
+  if (!s) { box.innerHTML = ''; return; }
+  const dev = await api('devices/' + encodeURIComponent(s)).catch(() => null);
+  if (!dev) {
+    box.innerHTML = `<div class="alert new">${icon('star')}<div><b>أول مرة الجهاز ده يدخل الورشة.</b> لو جاي للتهيئة اختار "تهيئة أول مرة".</div></div>`;
+    document.querySelector('input[name=itype][value=setup]').checked = true;
+    return;
+  }
+  const v = dev.visits;
+  box.innerHTML = `
+    ${dev.open_ticket ? `<div class="alert err">${icon('warn')}<div><b>الجهاز ده جوه الورشة دلوقتي</b> في تذكرة <a href="#/ticket/${dev.open_ticket}">#${dev.open_ticket}</a> ومتقفلتش.</div></div>` : ''}
+    ${dev.in_warranty ? `<div class="alert ok">${icon('shield')}<div><b>الجهاز لسه في الضمان</b> لحد <span class="num">${dev.warranty_until}</span> — اختار نوع الدخول "ضمان".</div></div>` : ''}
+    <div class="alert info">${icon('info')}<div>الجهاز ده دخل الورشة <b>${v.length}</b> مرة قبل كده. أول دخول: <b class="num">${day(dev.first_seen_at)}</b> (${TYPES[dev.first_intake_type] || dev.first_intake_type}).
+      آخر مرة: <a href="#/ticket/${v[0].id}">#${v[0].id}</a> — ${esc(v[0].complaint || '').slice(0, 60)} — ${ST[v[0].status]}.
+      <a href="#/device/${encodeURIComponent(s)}" target="_blank">افتح ملف الجهاز ↗</a></div></div>`;
+  if (dev.in_warranty) document.querySelector('input[name=itype][value=warranty]').checked = true;
+  if (!$('#n-dt').value) $('#n-dt').value = dev.device_type || '';
+  if (!$('#n-br').value) $('#n-br').value = dev.brand || '';
+  if (!$('#n-md').value) $('#n-md').value = dev.model || '';
+  if (dev.customer_id && !$('#n-cid').value && !$('#n-cn').value) pickCust({id:dev.customer_id, name:dev.customer_name, phone:dev.customer_phone, tickets:v.length});
+}
+async function createTicket(force = false) {
+  const body = {serial:$('#n-serial').value, intake_type:document.querySelector('input[name=itype]:checked').value,
+    priority:document.querySelector('input[name=prio]:checked').value, due_days:$('#n-due').value,
+    customer_id:$('#n-cid').value || null, customer_name:$('#n-cn').value, customer_phone:$('#n-cp').value,
+    customer_phone2:$('#n-cp2').value, customer_company:$('#n-cco').value,
+    device_type:$('#n-dt').value, brand:$('#n-br').value, model:$('#n-md').value, accessories:$('#n-acc').value,
+    condition:$('#n-cond').value, complaint:$('#n-cmp').value, password_note:$('#n-pw').value,
+    assign_to:$('#n-tech')?.value || null, photos:NEW_PHOTOS, force};
+  if (!body.complaint.trim()) return toast('اكتب العطل حسب كلام العميل', 'err');
+  $('#n-save').disabled = true;
+  try {
+    const r = await api('tickets', body);
+    modal({title:`✓ اتعملت تذكرة #${r.id}`, body:`
+      ${r.first_visit ? `<div class="alert new">${icon('star')}<div>الجهاز ده أول مرة يدخل الورشة، واتسجل في ملفات الأجهزة.</div></div>` : ''}
+      ${r.under_warranty ? `<div class="alert ok">${icon('shield')}<div>الجهاز راجع وهو لسه في الضمان، واتعلّم على التذكرة.</div></div>` : ''}
+      <p style="margin:0">اطبع للعميل إيصال الاستلام، والزق الاستيكر على الجهاز.</p>
+      <div class="row"><button type="button" class="btn pri" onclick="printIntake(${r.id})">${icon('print')} إيصال استلام A4</button>
+        <button type="button" class="btn" onclick="printLabel(${r.id})">${icon('print')} استيكر الجهاز</button></div>`,
+      ok:'افتح التذكرة', onOk: async () => (nav('ticket/' + r.id), true)});
+    nav('ticket/' + r.id);
+  } catch (e) {
+    if (e.code?.startsWith('device_open:')) {
+      const id = e.code.split(':')[1];
+      if (await confirmBox('الجهاز جوه الورشة', `الجهاز ده عنده تذكرة مفتوحة <a href="#/ticket/${id}">#${id}</a>. عايز تفتح تذكرة جديدة برضه؟`, 'أيوه افتح تذكرة جديدة'))
+        return createTicket(true);
+    } else if (e.message !== 'login') toast(e.message, 'err');
+  } finally { const b = $('#n-save'); if (b) b.disabled = false; }
+}
 
-  <div class="card"><h3>سجل التذكرة</h3><table><tbody>${t.history.map(h=>`<tr><td style="width:150px" class="muted">${h.created_at.slice(0,16)}</td><td>${esc(h.user_name)}</td><td>${esc(histText(h))}</td></tr>`).join('')}</tbody></table></div>`;
+// ================= ticket
+let TK = null, TK_TAB = 'overview';
+async function viewTicket(id) {
+  TK = await api('tickets/' + id);
+  renderTicket();
+}
+function renderTicket() {
+  const t = TK, closed = ['delivered','rejected'].includes(t.status);
+  const canWork = isMgr() || (isTech() && t.assigned_to === ME.id);
+  const flow = ['received','assigned','in_repair','repaired','delivered'];
+  const curI = flow.indexOf(t.status === 'waiting_customer' || t.status === 'waiting_parts' ? 'in_repair' : t.status);
+  const btn = (txt, fn, cls = '') => `<button class="btn ${cls}" onclick="${fn}">${txt}</button>`;
+  const actions = [];
+  if (isMgr() && !closed) actions.push(btn('👤 تعيين فني', 'mAssign()'));
+  if ((canWork || isFront()) && !closed) actions.push(btn('🔄 تغيير الحالة', 'mStatus()'));
+  if (canWork && !closed) actions.push(btn('🩺 تشخيص وعرض سعر', 'mDiagnosis()'));
+  if (isFront() && t.approval === 'pending') actions.push(btn('✋ رد العميل', 'mApproval()', 'pri'));
+  if (canWork && !closed) actions.push(btn('🛠 إضافة شغل', 'mNote()'), btn('🔩 إضافة قطعة', 'mPart()'));
+  if (isFront() && !closed) actions.push(btn('📦 تسليم للعميل', 'mDeliver()', t.status === 'repaired' ? 'ok' : ''));
+  if (isMgr() && closed) actions.push(btn('↩ إعادة فتح', 'mReopen()'));
+  if (ME.role === 'admin') actions.push('<span class="sp"></span>' + btn('🗑 مسح التذكرة', 'mDelete()', 'danger'));
+  $('#view').innerHTML = `
+  <div class="page-h">
+    <div><div class="row"><h1>تذكرة <span class="num">#${t.id}</span></h1>${stChip(t.status)}${typeChip(t.intake_type)}
+      ${t.priority === 'urgent' ? chip('مستعجل', 'red') : ''}${t.overdue ? chip('متأخر', 'red', 'nodot') : ''}
+      ${t.first_visit ? '<span class="chip c-black nodot">⭐ أول دخول للورشة</span>' : ''}${t.under_warranty ? chip('راجع في الضمان', 'pink') : ''}
+      ${t.approval !== 'none' ? chip(APPROVAL[t.approval], {pending:'amber', approved:'green', rejected:'red'}[t.approval]) : ''}</div>
+      <div class="sub">دخل ${fmtD(t.received_at)} · ${ago(t.received_at)} · استلمه ${esc(t.received_by_name)}</div></div>
+    <span class="sp"></span>
+    <div class="menu"><button class="btn" onclick="this.nextElementSibling.classList.toggle('hidden')">${icon('print')} طباعة ▾</button>
+      <div class="dd hidden" onmouseleave="this.classList.add('hidden')">
+        <a onclick="printLabel(${t.id})">🏷 استيكر الجهاز (زيبرا USB)</a>
+        <a onclick="printZebra(${t.id})">📡 استيكر — إرسال للزيبرا على الشبكة</a>
+        <a onclick="printIntake(${t.id})">🧾 إيصال استلام A4</a>
+        ${t.status === 'delivered' || t.status === 'repaired' ? `<a onclick="printDelivery(${t.id})">📄 إيصال تسليم وفاتورة A4</a>` : ''}
+      </div></div>
+    ${!isTech() && t.customer_phone ? `<button class="btn" onclick="whatsapp()">${icon('wa')} واتساب</button>` : ''}
+  </div>
+  <div class="card">
+    <div class="steps">${flow.map((s, i) => `${i ? `<div class="ln ${i <= curI ? 'done' : ''}"></div>` : ''}<div class="s ${i < curI || (i === curI && s === 'delivered') ? 'done' : i === curI ? 'cur' : ''}"><i>${i < curI || s === 'delivered' && i === curI ? '✓' : i + 1}</i>${ST[s]}</div>`).join('')}</div>
+    ${t.status === 'rejected' ? `<div class="alert err" style="margin:12px 0 0">${icon('warn')}<div>التذكرة اتقفلت مرفوضة / مرتجعة.</div></div>` : ''}
+    ${['waiting_customer','waiting_parts'].includes(t.status) ? `<div class="alert warn" style="margin:12px 0 0">${icon('info')}<div>${ST[t.status]}${t.estimate != null && t.status === 'waiting_customer' ? ` — عرض السعر: <b>${money(t.estimate)}</b>` : ''}</div></div>` : ''}
+    <div class="row" style="margin-top:14px">${actions.join('') || '<span class="muted small">مفيش إجراءات متاحة ليك على التذكرة دي</span>'}</div>
+  </div>
+  <div class="tabs" id="tabs">${[['overview','نظرة عامة'], ['work','الشغل والقطع', t.notes.length + t.parts.length], ...(isTech() ? [] : [['money','الحساب']]),
+    ['photos','الصور', t.photos.length], ['history','السجل', t.history.length]].map(([k, l, n]) =>
+    `<a data-t="${k}" class="${TK_TAB === k ? 'on' : ''}">${l}${n ? `<span class="n num">${n}</span>` : ''}</a>`).join('')}</div>
+  <div id="tab"></div>`;
+  document.querySelectorAll('#tabs a').forEach(a => a.onclick = () => { TK_TAB = a.dataset.t; renderTicket(); });
+  if (isTech() && TK_TAB === 'money') TK_TAB = 'overview';
+  ({overview:tabOverview, work:tabWork, money:tabMoney, photos:tabPhotos, history:tabHistory})[TK_TAB]();
+}
+function tabOverview() {
+  const t = TK;
+  $('#tab').innerHTML = `<div class="cols"><div>
+    <div class="card"><div class="card-h"><h3>الجهاز</h3><span class="sp"></span>${isFront() ? '<button class="btn sm" onclick="mEdit()">تعديل</button>' : ''}</div>
+      <div class="kv">
+        <div><span>السيريال</span><b class="mono">${esc(t.serial)}</b> ${isTech() ? '' : `<a class="small" href="#/device/${encodeURIComponent(t.serial)}">ملف الجهاز ↗</a>`}</div>
+        <div><span>الجهاز</span><b>${esc(devName(t))}</b></div>
+        <div><span>الإكسسوارات</span>${esc(t.accessories) || '—'}</div>
+        <div><span>الحالة الظاهرية</span>${esc(t.condition) || '—'}</div>
+        ${t.password_note ? `<div><span>باسورد الجهاز</span><b class="mono">${esc(t.password_note)}</b></div>` : ''}
+        <div><span>أول دخول للورشة</span>${t.device_first_seen ? `<span class="num">${day(t.device_first_seen.first_seen_at)}</span> · ${TYPES[t.device_first_seen.first_intake_type] || ''}` : '—'}</div>
+      </div>
+      <div class="note" style="margin:14px 0 0"><div class="h">العطل حسب كلام العميل</div><p>${esc(t.complaint) || '—'}</p></div>
+      ${t.diagnosis ? `<div class="note" style="margin:8px 0 0;background:#f0f9ff;border-color:#bae6fd"><div class="h">تشخيص الفني ${t.estimate != null ? `· عرض السعر: <b>${money(t.estimate)}</b>` : ''}</div><p>${esc(t.diagnosis)}</p></div>` : ''}
+      ${t.approval_note ? `<p class="small muted" style="margin:8px 0 0">رد العميل: ${esc(t.approval_note)} (${fmtD(t.approval_at)})</p>` : ''}
+    </div>
+    ${t.other_visits.length ? `<div class="card"><h3>زيارات تانية لنفس الجهاز</h3><div class="row">${t.other_visits.map(v =>
+      `<a class="btn sm" href="#/ticket/${v.id}">#${v.id} · ${day(v.received_at)} · ${ST[v.status]}</a>`).join('')}</div></div>` : ''}
+  </div><div>
+    <div class="card"><h3>العميل</h3>${isTech() ? `<b>${esc(t.customer_name)}</b>` : `<a href="#/customer/${t.customer_id}"><b>${esc(t.customer_name)}</b></a>`}
+      <div class="num">${esc(t.customer_phone)}${t.customer_phone2 ? ' · ' + esc(t.customer_phone2) : ''}</div></div>
+    <div class="card"><h3>المتابعة</h3><div class="kv" style="grid-template-columns:1fr 1fr">
+      <div><span>الفني</span><b>${esc(t.assigned_to_name) || '<span class="muted">لسه ماتعيّنش</span>'}</b></div>
+      <div><span>ميعاد التسليم</span><b class="num" style="${t.overdue ? 'color:var(--red)' : ''}">${day(t.due_at)}</b></div>
+      ${t.closed_at ? `<div><span>اتقفلت</span><b class="num">${fmtD(t.closed_at)}</b></div>` : ''}
+      ${t.delivered_to ? `<div><span>استلمه</span><b>${esc(t.delivered_to)}</b></div>` : ''}
+      ${t.warranty_until ? `<div><span>ضمان لحد</span><b class="num">${t.warranty_until}</b></div>` : ''}
+      ${isTech() ? '' : `<div><span>الإجمالي</span><b>${money(t.total)}</b></div><div><span>الباقي</span><b style="${t.balance > 0 ? 'color:var(--red)' : ''}">${money(t.balance)}</b></div>`}
+    </div></div>
+  </div></div>`;
+}
+function tabWork() {
+  const t = TK, canWork = isMgr() || (isTech() && t.assigned_to === ME.id), closed = ['delivered','rejected'].includes(t.status);
+  $('#tab').innerHTML = `
+  <div class="card"><div class="card-h"><h3>الشغل اللي اتعمل</h3><span class="sp"></span>${canWork && !closed ? '<button class="btn sm pri" onclick="mNote()">+ إضافة شغل</button>' : ''}</div>
+    ${t.notes.map(n => `<div class="note"><div class="h">${chip(KIND[n.kind] || n.kind, {maintenance:'blue', inspection:'gray', setup:'teal', note:'amber'}[n.kind] || 'gray', 'nodot')}
+      <b>${esc(n.user_name)}</b> · ${fmtD(n.created_at)}</div><p>${esc(n.text)}</p></div>`).join('') || emptyBox('لسه محدش كتب شغل على الجهاز')}</div>
+  <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>قطع الغيار</h3><span class="sp"></span>${canWork && !closed ? '<button class="btn sm pri" onclick="mPart()">+ إضافة قطعة</button>' : ''}</div>
+    <div class="tbl-wrap">${t.parts.length ? `<table class="t"><thead><tr><th>القطعة</th><th>السيريال</th><th>الكمية</th>${isTech() ? '' : '<th>السعر</th><th>الإجمالي</th>'}<th>ركّبها</th><th></th></tr></thead><tbody>
+      ${t.parts.map(p => `<tr><td><b>${esc(p.name)}</b></td><td class="mono">${esc(p.serial) || '—'}</td><td class="num">${p.qty}</td>
+        ${isTech() ? '' : `<td>${money(p.price)}</td><td>${money(p.price * p.qty)}</td>`}
+        <td class="small">${esc(p.user_name)}<div class="muted">${fmtD(p.created_at)}</div></td>
+        <td>${isMgr() ? `<button class="btn sm danger" onclick="delPart(${p.id})">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table>` : emptyBox('مفيش قطع غيار')}</div></div>`;
+}
+function tabMoney() {
+  const t = TK, closed = ['delivered','rejected'].includes(t.status);
+  $('#tab').innerHTML = `<div class="cols"><div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>المدفوعات</h3><span class="sp"></span>
+      ${isFront() ? '<button class="btn sm pri" onclick="mPayment()">+ تسجيل دفعة</button>' : ''}</div>
+    <div class="tbl-wrap">${t.payments.length ? `<table class="t"><thead><tr><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>استلمها</th></tr></thead><tbody>
+      ${t.payments.map(p => `<tr><td><b>${money(p.amount)}</b></td><td>${PAY[p.method] || p.method}</td><td>${esc(p.note) || '—'}</td><td class="small">${esc(p.user_name)}<div class="muted">${fmtD(p.created_at)}</div></td></tr>`).join('')}
+      </tbody></table>` : emptyBox('لسه مفيش مدفوعات')}</div></div>
+    <div class="card"><div class="card-h"><h3>الحساب</h3><span class="sp"></span>${isMgr() && !closed ? '<button class="btn sm" onclick="mCharges()">المصنعية والخصم</button>' : ''}</div>
+      <div class="money"><span>قطع الغيار</span><b>${money(t.parts_total)}</b></div>
+      <div class="money"><span>المصنعية</span><b>${money(t.labor)}</b></div>
+      <div class="money"><span>الخصم</span><b>- ${money(t.discount)}</b></div>
+      <div class="money tot"><span>الإجمالي</span><b>${money(t.total)}</b></div>
+      <div class="money"><span>المدفوع</span><b style="color:var(--green)">${money(t.paid)}</b></div>
+      <div class="money bal"><span>الباقي</span><b>${money(t.balance)}</b></div>
+      ${t.estimate != null ? `<p class="small muted" style="margin:10px 0 0">عرض السعر اللي اتبعت للعميل: ${money(t.estimate)}</p>` : ''}
+    </div></div>`;
+}
+function tabPhotos() {
+  const t = TK, canUp = isFront() || isMgr() || (isTech() && t.assigned_to === ME.id);
+  const grp = (st, l) => `<h3 style="margin-top:6px">${l}</h3><div class="thumbs" style="margin-bottom:16px">${t.photos.filter(p => p.stage === st).map(p =>
+    `<img src="/photos/${p.file}" onclick="lightbox(this.src)" title="${fmtD(p.created_at)}">`).join('') || '<span class="muted small">مفيش صور</span>'}</div>`;
+  $('#tab').innerHTML = `<div class="card"><div class="card-h"><span class="sp"></span>${canUp ? '<button class="btn sm pri" onclick="mPhotos()">+ رفع صور</button>' : ''}</div>
+    ${grp('intake', 'صور الاستلام')}${grp('repair', 'صور الصيانة')}${grp('delivery', 'صور التسليم')}</div>`;
+}
+function tabHistory() {
+  $('#tab').innerHTML = `<div class="card"><div class="tl">${TK.history.map(h => `<div class="it" style="--dot:${h.action === 'status' ? ST_HEX[(h.detail || '').split(' -> ')[1]?.split(' ')[0]] || '#000' : '#000'}">
+    <b>${esc(histText(h))}</b><div class="muted small">${esc(h.user_name)} · ${fmtD(h.created_at)}</div></div>`).join('')}</div></div>`;
 }
 function histText(h) {
-  const a = {created:'فتح التذكرة', assigned:'تعيين فني', status:'تغيير حالة', note:'إضافة شغل', part_added:'تركيب قطعة',
-    part_removed:'حذف قطعة', photos:'رفع صور', label_printed:'طباعة استيكر'}[h.action] || h.action;
+  const a = {created:'فتح التذكرة', assigned:'تعيين فني', status:'تغيير حالة', note:'إضافة شغل', part_added:'تركيب قطعة', part_removed:'حذف قطعة',
+    photos:'رفع صور', label_printed:'طباعة استيكر على الشبكة', diagnosis:'تشخيص', approval:'رد العميل', charges:'تعديل المصنعية والخصم',
+    payment:'تسجيل دفعة', delivered:'تسليم للعميل', reopened:'إعادة فتح التذكرة', edited:'تعديل بيانات الجهاز', printed:'طباعة'}[h.action] || h.action;
   let d = h.detail || '';
-  d = d.replace(/\bmaintenance\b/, 'صيانة').replace(/\binspection\b/, 'فحص').replace(/(\d+) photos/, '$1 صور')
-       .replace(/(\d+) repair$/, '$1 صيانة').replace(/(\d+) intake$/, '$1 استلام');
-  if (h.action === 'status') d = d.replace(/^(\w+) -> (\w+)/, (_, x, y) => `${ST[x]||x} ← ${ST[y]||y}`);
+  if (h.action === 'created') { const [ty, n, ...f] = d.split('|'); d = [TYPES[ty] || ty, n ? `${n} صور` : '', f.includes('first') ? 'أول دخول' : '', f.includes('warranty') ? 'في الضمان' : ''].filter(Boolean).join('، '); }
+  else if (h.action === 'status') d = d.replace(/^(\w+) -> (\w+)/, (_, x, y) => `${ST[x] || x} ← ${ST[y] || y}`);
+  else if (h.action === 'note') d = KIND[d] || d;
+  else if (h.action === 'photos') d = d.replace(/(\d+) (\w+)/, (_, n, s) => `${n} ${({intake:'استلام', repair:'صيانة', delivery:'تسليم'})[s] || s}`);
+  else if (h.action === 'approval') d = d.replace(/^approved/, 'وافق').replace(/^rejected/, 'رفض');
+  else if (h.action === 'payment') { const [m, w] = d.split('|'); d = `${m} ${cur()} ${PAY[w] || ''}`; }
+  else if (h.action === 'charges') { const [l, ds] = d.split('|'); d = `مصنعية ${l} · خصم ${ds}`; }
+  else if (h.action === 'delivered') { const [n, w] = d.split('|'); d = `${n}${+w ? ` · ضمان ${w} يوم` : ''}`; }
+  else if (h.action === 'diagnosis') { const [e, ask] = d.split('|'); d = (e ? `عرض سعر ${e} ${cur()}` : '') + (ask ? ' · اتبعت للعميل' : ''); }
+  else if (h.action === 'printed') d = {intake:'إيصال استلام', delivery:'إيصال تسليم', label:'استيكر'}[d] || d;
   return d ? `${a}: ${d}` : a;
 }
-async function assign(id) { if (!$('#as').value) return; await api(`tickets/${id}/assign`, {user_id:+$('#as').value}); go('ticket', id); }
-async function setStatus(id) { await api(`tickets/${id}/status`, {status:$('#ns').value, note:$('#snote').value}); go('ticket', id); }
-async function addNote(id) { await api(`tickets/${id}/notes`, {kind:$('#nk').value, text:$('#nt').value}); go('ticket', id); }
-async function addPart(id) { await api(`tickets/${id}/parts`, {name:$('#pn').value, serial:$('#psr').value, qty:$('#pq').value, price:$('#pp').value}); go('ticket', id); }
-async function delPart(id, pid) { if (confirm('حذف القطعة دي؟')) { await api(`tickets/${id}/parts_delete`, {id:pid}); go('ticket', id); } }
-async function addPhotos(id) { const photos = await readPhotos($('#ph2')); if (!photos.length) return; await api(`tickets/${id}/photos`, {stage:$('#pst').value, photos}); go('ticket', id); }
-async function printZebra(id) { await api(`tickets/${id}/print_zebra`, {}); alert('اتبعت للطابعة'); }
 
-// Label via the Windows Zebra driver: page size 50x30 mm, opens the browser print dialog.
-async function printLabel(id) {
-  const t = await api('tickets/' + id);
-  $('#label').innerHTML = `<div class="big">#${t.id} &nbsp; ${esc(t.serial)}</div>${code128(t.serial)}
-    <div dir="auto">${esc(t.customer_name)}</div><div>IN: ${t.received_at.slice(0,16)}</div>
-    <div dir="auto">${esc(t.assigned_to_name || '-')}</div>`;
-  window.print();
+// ---- ticket modals
+const reload = async () => { TK = await api('tickets/' + TK.id); renderTicket(); };
+const tAct = (sub, body, msg) => act(async () => { await api(`tickets/${TK.id}/${sub}`, body); await reload(); }, msg);
+function mAssign() {
+  const techs = USERS.filter(u => u.active && ['technician','manager','admin'].includes(u.role));
+  modal({title:'تعيين فني', body:`<label class="f">الفني<select name="u">${techs.map(u => `<option value="${u.id}" ${u.id === TK.assigned_to ? 'selected' : ''}>${esc(u.full_name)} — ${ROLE[u.role]}</option>`).join('')}</select></label>`,
+    ok:'تعيين', onOk: f => tAct('assign', {user_id:+fv(f, 'u')}, 'اتعيّن الفني')});
+}
+function mStatus() {
+  const allowed = Object.keys(ST).filter(s => s !== 'delivered' && (isMgr() || (isTech() ? true : ['waiting_customer','rejected'].includes(s))));
+  modal({title:'تغيير الحالة', body:`<label class="f">الحالة الجديدة<div class="seg">${allowed.map(s => `<label><input type="radio" name="s" value="${s}" ${s === TK.status ? 'checked' : ''}><span>${ST[s]}</span></label>`).join('')}</div></label>
+    <label class="f">ملاحظة (اختياري)<input name="n" placeholder="مثلاً: مستنيين شاشة من المورد"></label>`,
+    onOk: f => tAct('status', {status:f.querySelector('input[name=s]:checked')?.value, note:fv(f, 'n')}, 'الحالة اتغيرت')});
+}
+function mDiagnosis() {
+  modal({title:'تشخيص وعرض سعر', body:`<label class="f req">التشخيص — العطل الحقيقي إيه؟<textarea name="d">${esc(TK.diagnosis || '')}</textarea></label>
+    <label class="f">التكلفة المتوقعة (${esc(cur())})<input name="e" type="number" min="0" step="0.01" class="num" value="${TK.estimate ?? ''}"></label>
+    <label class="row" style="cursor:pointer"><input type="checkbox" name="a" ${TK.approval === 'approved' ? '' : 'checked'}> محتاج موافقة العميل قبل ما نكمّل (الحالة هتبقى "مستني موافقة العميل")</label>`,
+    onOk: f => tAct('diagnosis', {diagnosis:fv(f, 'd'), estimate:fv(f, 'e'), ask_approval:f.elements.a.checked}, 'التشخيص اتسجل')});
+}
+function mApproval() {
+  modal({title:'رد العميل على عرض السعر', body:`${TK.estimate != null ? `<div class="alert info">${icon('info')}<div>عرض السعر: <b>${money(TK.estimate)}</b><br>${esc(TK.diagnosis || '')}</div></div>` : ''}
+    <label class="f">الرد<div class="seg"><label><input type="radio" name="r" value="approved" checked><span>✓ وافق</span></label><label><input type="radio" name="r" value="rejected"><span>✗ رفض</span></label></div></label>
+    <label class="f">ملاحظة<input name="n" placeholder="مثلاً: وافق في التليفون الساعة 3"></label>`,
+    onOk: f => tAct('approval', {decision:f.querySelector('input[name=r]:checked').value, note:fv(f, 'n')}, 'رد العميل اتسجل')});
+}
+function mNote() {
+  modal({title:'إضافة شغل', body:`<label class="f">النوع<div class="seg">${Object.entries(KIND).map(([k, v], i) => `<label><input type="radio" name="k" value="${k}" ${i ? '' : 'checked'}><span>${v}</span></label>`).join('')}</div></label>
+    <label class="f req">اللي اتعمل في الجهاز<textarea name="t" placeholder="مثلاً: تغيير الباور جاك وتنضيف المروحة"></textarea></label>`,
+    onOk: f => tAct('notes', {kind:f.querySelector('input[name=k]:checked').value, text:fv(f, 't')}, 'اتسجل')});
+}
+function mPart() {
+  const m = modal({title:'إضافة قطعة غيار', body:`<label class="f req">اسم القطعة<input name="n" list="dl-part"></label><datalist id="dl-part"></datalist>
+    <div class="grid g3"><label class="f">سيريال القطعة<input name="s" class="mono"></label><label class="f">الكمية<input name="q" type="number" min="1" value="1" class="num"></label>
+    <label class="f">سعر الوحدة (${esc(cur())})<input name="p" type="number" min="0" step="0.01" class="num"></label></div>`,
+    ok:'إضافة', onOk: f => tAct('parts', {name:fv(f, 'n'), serial:fv(f, 's'), qty:fv(f, 'q'), price:fv(f, 'p')}, 'القطعة اتضافت')});
+  api('suggest?field=part').then(v => m.el.querySelector('#dl-part').innerHTML = v.map(x => `<option value="${esc(x)}">`).join('')).catch(() => {});
+}
+async function delPart(pid) { if (await confirmBox('حذف قطعة', 'متأكد إنك عايز تحذف القطعة دي؟', 'حذف', true)) tAct('parts_delete', {id:pid}, 'اتحذفت'); }
+function mCharges() {
+  modal({title:'المصنعية والخصم', body:`<div class="grid g2"><label class="f">المصنعية (${esc(cur())})<input name="l" type="number" min="0" step="0.01" class="num" value="${TK.labor}"></label>
+    <label class="f">الخصم (${esc(cur())})<input name="d" type="number" min="0" step="0.01" class="num" value="${TK.discount}"></label></div>
+    <p class="muted small" style="margin:0">قطع الغيار: ${money(TK.parts_total)}</p>`,
+    onOk: f => tAct('charges', {labor:fv(f, 'l'), discount:fv(f, 'd')}, 'الحساب اتحدّث')});
+}
+function payFields(def) {
+  return `<div class="grid g2"><label class="f">المبلغ (${esc(cur())})<input name="a" type="number" min="0" step="0.01" class="num" value="${def > 0 ? def.toFixed(2) : ''}"></label>
+    <label class="f">طريقة الدفع<select name="m">${Object.entries(PAY).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label></div>`;
+}
+function mPayment() {
+  modal({title:'تسجيل دفعة', body:`<p class="muted small" style="margin:0">الباقي على العميل: <b>${money(TK.balance)}</b></p>${payFields(TK.balance)}
+    <label class="f">ملاحظة<input name="n" placeholder="مثلاً: مقدّم"></label>`,
+    onOk: f => tAct('payments', {amount:fv(f, 'a'), method:fv(f, 'm'), note:fv(f, 'n')}, 'الدفعة اتسجلت')});
+}
+function mDeliver() {
+  const notReady = TK.status !== 'repaired';
+  modal({title:'تسليم الجهاز للعميل', body:`
+    ${notReady ? `<div class="alert warn">${icon('warn')}<div>حالة الجهاز "${ST[TK.status]}" مش "جاهز للتسليم". لو هتسلّمه كده (مثلاً العميل رفض الإصلاح) كمّل.</div></div>` : ''}
+    <div class="card" style="margin:0;padding:12px"><div class="money"><span>الإجمالي</span><b>${money(TK.total)}</b></div><div class="money"><span>المدفوع</span><b>${money(TK.paid)}</b></div><div class="money bal"><span>الباقي</span><b>${money(TK.balance)}</b></div></div>
+    <label class="f">المبلغ اللي هيدفعه دلوقتي</label>${payFields(TK.balance)}
+    <div class="grid g2"><label class="f">اسم اللي استلم الجهاز<input name="to" value="${esc(TK.customer_name)}"></label>
+    <label class="f">مدة الضمان (يوم)<input name="w" type="number" min="0" class="num" value="${notReady ? 0 : esc(CFG.warranty_days || 0)}"></label></div>`,
+    ok:'تأكيد التسليم', okClass:'ok', onOk: async f => {
+      const r = await tAct('deliver', {amount:fv(f, 'a'), method:fv(f, 'm'), delivered_to:fv(f, 'to'), warranty_days:fv(f, 'w'), force:notReady}, 'الجهاز اتسلّم ✓');
+      if (r) modal({title:'اطبع إيصال التسليم؟', body:'<p style="margin:0">إيصال التسليم فيه الشغل اللي اتعمل والقطع والحساب والضمان، ومكان لتوقيع العميل.</p>',
+        ok:'اطبع إيصال التسليم', onOk: async () => (printDelivery(TK.id), true)});
+      return r;
+    }});
+}
+function mDelete() {
+  const t = TK;
+  modal({title:`مسح تذكرة #${t.id}`, okClass:'danger', ok:'امسح نهائي', body:`
+    <div class="alert err">${icon('warn')}<div><b>المسح نهائي ومينفعش يرجع.</b> هيتمسح مع التذكرة الشغل وقطع الغيار والمدفوعات (${money(t.paid)}) والصور (${t.photos.length}) والسجل بتاعها.
+      لو التذكرة دي أول دخول للجهاز، أول دخول هيتحسب من الزيارة اللي بعدها.</div></div>
+    <p style="margin:0">لو عايز تقفلها بس من غير مسح، استخدم "تغيير الحالة ← مرفوض / مرتجع".</p>
+    <label class="f">سبب المسح<input name="r" placeholder="مثلاً: اتفتحت بالغلط مرتين"></label>
+    <label class="f req">اكتب رقم التذكرة <b class="num">${t.id}</b> للتأكيد<input name="c" inputmode="numeric" class="num" autocomplete="off"></label>`,
+    onOk: f => act(async () => { await api(`tickets/${t.id}/delete`, {confirm:fv(f, 'c'), reason:fv(f, 'r')}); nav('tickets'); }, `تذكرة #${t.id} اتمسحت`)});
+}
+async function mReopen() {
+  modal({title:'إعادة فتح التذكرة', body:'<label class="f">السبب<input name="n"></label>', ok:'إعادة فتح', onOk: f => tAct('reopen', {note:fv(f, 'n')}, 'التذكرة اتفتحت تاني')});
+}
+function mEdit() {
+  const t = TK;
+  modal({title:'تعديل بيانات الجهاز', wide:true, body:`<div class="grid g3">
+    <label class="f">نوع الجهاز<input name="device_type" value="${esc(t.device_type)}"></label><label class="f">الماركة<input name="brand" value="${esc(t.brand)}"></label>
+    <label class="f">الموديل<input name="model" value="${esc(t.model)}"></label></div>
+    <label class="f">الإكسسوارات<input name="accessories" value="${esc(t.accessories)}"></label>
+    <label class="f">الحالة الظاهرية<input name="condition" value="${esc(t.condition)}"></label>
+    <label class="f">العطل حسب كلام العميل<textarea name="complaint">${esc(t.complaint)}</textarea></label>
+    <div class="grid g3"><label class="f">باسورد الجهاز<input name="password_note" value="${esc(t.password_note)}"></label>
+    <label class="f">نوع الدخول<select name="intake_type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${k === t.intake_type ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    <label class="f">ميعاد التسليم<input name="due_at" type="date" value="${day(t.due_at) === '—' ? '' : day(t.due_at)}"></label></div>
+    <label class="row" style="cursor:pointer"><input type="checkbox" name="urgent" ${t.priority === 'urgent' ? 'checked' : ''}> مستعجل</label>`,
+    onOk: f => tAct('edit', {...Object.fromEntries(['device_type','brand','model','accessories','condition','complaint','password_note','intake_type','due_at'].map(k => [k, fv(f, k)])),
+      priority:f.elements.urgent.checked ? 'urgent' : 'normal'}, 'اتعدّلت')});
+}
+function mPhotos() {
+  const stages = isTech() ? [['repair','صيانة']] : [['repair','صيانة'], ['intake','استلام'], ['delivery','تسليم']];
+  modal({title:'رفع صور', body:`<label class="f">النوع<div class="seg">${stages.map(([k, v], i) => `<label><input type="radio" name="s" value="${k}" ${i ? '' : 'checked'}><span>صور ${v}</span></label>`).join('')}</div></label>
+    <input type="file" name="ph" accept="image/*" multiple class="inp">`,
+    ok:'رفع', onOk: async f => { const photos = await readPhotos(f.elements.ph.files); if (!photos.length) return toast('اختار صور الأول', 'err');
+      return tAct('photos', {stage:f.querySelector('input[name=s]:checked').value, photos}, 'الصور اترفعت'); }});
+}
+function whatsapp() {
+  let ph = (TK.customer_phone || '').replace(/\D/g, '');
+  if (ph.startsWith('0')) ph = '2' + ph;
+  const msg = (CFG.wa_template_ready || '').replace('{name}', TK.customer_name).replace('{device}', devName(TK)).replace('{id}', TK.id)
+    .replace('{total}', `${Number(TK.total).toFixed(2)} ${cur()}`).replace('{balance}', `${Number(TK.balance).toFixed(2)} ${cur()}`);
+  modal({title:'رسالة واتساب للعميل', body:`<label class="f">الرسالة<textarea name="m" style="min-height:110px">${esc(msg)}</textarea></label>
+    <p class="muted small" style="margin:0">هتتفتح في واتساب على رقم <span class="num">${esc(TK.customer_phone)}</span></p>`, ok:'افتح واتساب',
+    onOk: async f => (window.open(`https://wa.me/${ph}?text=${encodeURIComponent(fv(f, 'm'))}`, '_blank'), true)});
 }
 
+// ================= device file
+async function viewDevice(serial) {
+  if (isTech()) return nav('tickets');
+  $('#view').innerHTML = `<div class="page-h"><div><h1>ملف الجهاز</h1><div class="sub">اكتب السيريال أو امسحه بالباركود وشوف كل تاريخ الجهاز في الورشة</div></div></div>
+    <div class="card"><div class="bigsearch"><input id="ds" class="mono" placeholder="السيريال..." value="${esc(serial)}"><button class="btn pri lg" onclick="nav('device/'+encodeURIComponent($('#ds').value.trim()))">بحث</button></div></div>
+    <div id="dres"></div>`;
+  $('#ds').addEventListener('keydown', e => e.key === 'Enter' && nav('device/' + encodeURIComponent(e.target.value.trim())));
+  if (!serial) return $('#ds').focus();
+  const dev = await api('devices/' + encodeURIComponent(serial)).catch(e => { if (e.code === 'device_not_found') return null; throw e; });
+  if (!dev) {
+    const near = (await api('tickets?' + qs({q:serial, limit:200}))).rows;
+    const serials = [...new Map(near.map(t => [t.serial.toUpperCase(), t])).values()].slice(0, 20);
+    $('#dres').innerHTML = serials.length ? `<div class="card"><h3>مفيش جهاز بالسيريال ده بالظبط — يمكن تقصد:</h3><div class="row">${serials.map(t =>
+      `<a class="btn" href="#/device/${encodeURIComponent(t.serial)}"><span class="mono">${esc(t.serial)}</span> · ${esc(devName(t))} · ${esc(t.customer_name)}</a>`).join('')}</div></div>`
+      : `<div class="card">${emptyBox(`السيريال <b class="mono">${esc(serial)}</b> مادخلش الورشة قبل كده.`, 'dev')}
+      ${isFront() ? `<div style="text-align:center"><button class="btn pri" onclick="nav('new');setTimeout(()=>{$('#n-serial').value=${JSON.stringify(serial).replace(/"/g, '&quot;')};lookupSerial()},300)">استلمه دلوقتي</button></div>` : ''}</div>`;
+    return;
+  }
+  const v = dev.visits, first = v[v.length - 1];
+  $('#dres').innerHTML = `
+  <div class="card"><div class="devhead"><div class="ic">${icon('dev')}</div>
+    <div><h1 class="mono" style="font-size:24px">${esc(dev.serial)}</h1><div style="font-size:16px">${esc(devName(dev))}</div>
+      <div class="muted small">المالك الحالي: ${dev.customer_id ? `<a href="#/customer/${dev.customer_id}">${esc(dev.customer_name)}</a> <span class="num">${esc(dev.customer_phone)}</span>` : '—'}</div></div>
+    <span class="sp"></span>
+    <div class="row">${dev.open_ticket ? `<a class="btn" href="#/ticket/${dev.open_ticket}">جوه الورشة دلوقتي: #${dev.open_ticket}</a>` : ''}
+      ${dev.in_warranty ? chip(`في الضمان لحد ${dev.warranty_until}`, 'green') : dev.warranty_until ? chip(`الضمان خلص ${dev.warranty_until}`, 'gray') : ''}</div></div></div>
+  <div class="alert ${dev.first_intake_type === 'setup' ? 'new' : 'info'}">${icon('star')}<div>
+    <b>أول دخول للورشة:</b> <span class="num">${fmtD(dev.first_seen_at)}</span> — ${TYPES[dev.first_intake_type] || dev.first_intake_type}
+    ${first ? ` (تذكرة <a href="#/ticket/${first.id}">#${first.id}</a>)` : ''}${dev.first_intake_type === 'setup' ? ' — الجهاز دخل أول مرة للتهيئة.' : ''}</div></div>
+  <div class="grid g4" style="margin-bottom:16px">
+    <div class="kpi" style="--k:#000"><div class="l">عدد مرات الدخول</div><div class="v num">${v.length}</div></div>
+    <div class="kpi" style="--k:var(--blue)"><div class="l">قطع غيار اتركبت</div><div class="v num">${dev.parts_count}</div></div>
+    <div class="kpi" style="--k:var(--green)"><div class="l">إجمالي اللي اتصرف</div><div class="v" style="font-size:20px">${money(dev.total_spent)}</div></div>
+    <div class="kpi" style="--k:var(--amber)"><div class="l">آخر دخول</div><div class="v num" style="font-size:20px">${day(v[0]?.received_at)}</div></div>
+  </div>
+  <div class="card"><h2>تاريخ الجهاز في الورشة</h2><div class="tl">
+    ${v.map((t, i) => {
+      const prev = v[i + 1], gap = prev?.closed_at ? Math.round((new Date(t.received_at.replace(' ', 'T')) - new Date(prev.closed_at.replace(' ', 'T'))) / 864e5) : null;
+      return `<div class="it" style="--dot:${ST_HEX[t.status]}">
+      <div class="row"><a href="#/ticket/${t.id}"><b class="num">#${t.id}</b></a> ${typeChip(t.intake_type)} ${stChip(t.status)}
+        ${t.under_warranty ? chip('في الضمان', 'pink') : ''}${gap !== null && gap <= 30 ? chip(`رجع بعد ${gap} يوم بس`, 'red', 'nodot') : ''}
+        <span class="muted small num">${fmtD(t.received_at)}${t.closed_at ? ' ← ' + fmtD(t.closed_at) : ''}</span></div>
+      <div class="note" style="margin-top:8px"><div class="h">العطل: ${esc(t.complaint) || '—'}</div>
+        ${t.diagnosis ? `<p><b>التشخيص:</b> ${esc(t.diagnosis)}</p>` : ''}
+        ${t.notes.map(n => `<p>• <b>${KIND[n.kind] || n.kind}:</b> ${esc(n.text)}</p>`).join('')}
+        ${t.parts.length ? `<p style="margin-top:6px"><b>القطع:</b> ${t.parts.map(p => `${esc(p.name)}${p.serial ? ` <span class="mono small">(${esc(p.serial)})</span>` : ''} ×${p.qty}`).join('، ')}</p>` : ''}
+        <div class="h" style="margin:6px 0 0">الفني: ${esc(t.assigned_to_name) || '—'} · العميل: ${esc(t.customer_name)} · الإجمالي: ${money(t.total)}</div></div></div>`; }).join('')}
+  </div></div>`;
+}
+
+// ================= customers
+async function viewCustomers() {
+  $('#view').innerHTML = `<div class="page-h"><h1>العملاء</h1></div><div class="card"><input id="cq" class="inp" placeholder="دوّر باسم أو موبايل أو شركة..." style="margin:0"></div>
+    <div class="card flush"><div class="tbl-wrap" id="crows">${spinner()}</div></div>`;
+  const load = async () => {
+    const cs = await api('customers?q=' + encodeURIComponent($('#cq').value.trim()));
+    $('#crows').innerHTML = cs.length ? `<table class="t"><thead><tr><th>الاسم</th><th>الموبايل</th><th>الشركة</th><th>عدد التذاكر</th></tr></thead><tbody>
+      ${cs.map(c => `<tr class="click" onclick="nav('customer/${c.id}')"><td><b>${esc(c.name)}</b></td><td class="num">${esc(c.phone)}${c.phone2 ? ' · ' + esc(c.phone2) : ''}</td><td>${esc(c.company) || '—'}</td><td class="num">${c.tickets}</td></tr>`).join('')}
+      </tbody></table>` : emptyBox('مفيش عملاء', 'users');
+  };
+  let tm; $('#cq').oninput = () => { clearTimeout(tm); tm = setTimeout(load, 250); };
+  load();
+}
+async function viewCustomer(id) {
+  const c = await api('customers/' + id);
+  const spent = c.tickets.filter(t => t.status === 'delivered').reduce((a, t) => a + t.total, 0);
+  const due = c.tickets.reduce((a, t) => a + Math.max(0, t.balance), 0);
+  $('#view').innerHTML = `<div class="page-h"><div><h1>${esc(c.name)}</h1><div class="sub num">${esc(c.phone)}${c.phone2 ? ' · ' + esc(c.phone2) : ''}${c.company ? ' · ' + esc(c.company) : ''}</div></div><span class="sp"></span>
+    ${isFront() ? `<button class="btn" onclick='mCustomer(${JSON.stringify(c).replace(/'/g, "&#39;")})'>تعديل البيانات</button>` : ''}</div>
+  <div class="grid g4" style="margin-bottom:16px">
+    <div class="kpi" style="--k:#000"><div class="l">عدد التذاكر</div><div class="v num">${c.tickets.length}</div></div>
+    <div class="kpi" style="--k:var(--blue)"><div class="l">عدد الأجهزة</div><div class="v num">${c.devices.length}</div></div>
+    <div class="kpi" style="--k:var(--green)"><div class="l">إجمالي التعامل</div><div class="v" style="font-size:20px">${money(spent)}</div></div>
+    <div class="kpi" style="--k:var(--red)"><div class="l">مبالغ باقية عليه</div><div class="v" style="font-size:20px">${money(due)}</div></div></div>
+  ${c.address || c.notes ? `<div class="card">${c.address ? `<p style="margin:0"><b>العنوان:</b> ${esc(c.address)}</p>` : ''}${c.notes ? `<p style="margin:6px 0 0"><b>ملاحظات:</b> ${esc(c.notes)}</p>` : ''}</div>` : ''}
+  <div class="card"><h3>الأجهزة</h3><div class="row">${c.devices.map(d => `<a class="btn sm" href="#/device/${encodeURIComponent(d.serial)}"><span class="mono">${esc(d.serial)}</span> · ${esc(devName(d))}</a>`).join('') || '<span class="muted">—</span>'}</div></div>
+  <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>التذاكر</h3></div><div class="tbl-wrap">${ticketTable(c.tickets) || emptyBox('مفيش')}</div></div>`;
+}
+function mCustomer(c) {
+  modal({title:'تعديل بيانات العميل', body:`<div class="grid g2"><label class="f req">الاسم<input name="name" value="${esc(c.name)}"></label><label class="f">الشركة<input name="company" value="${esc(c.company)}"></label>
+    <label class="f">الموبايل<input name="phone" value="${esc(c.phone)}" class="num"></label><label class="f">موبايل تاني<input name="phone2" value="${esc(c.phone2)}" class="num"></label></div>
+    <label class="f">العنوان<input name="address" value="${esc(c.address)}"></label><label class="f">ملاحظات<textarea name="notes">${esc(c.notes)}</textarea></label>`,
+    onOk: f => act(async () => { await api('customers/' + c.id, Object.fromEntries(['name','company','phone','phone2','address','notes'].map(k => [k, fv(f, k)]))); route(); }, 'اتحفظ')});
+}
+
+// ================= reports
+async function viewReports() {
+  if (!isMgr()) return nav('dashboard');
+  const t = new Date(), iso = d => d.toISOString().slice(0, 10);
+  const from0 = iso(new Date(t.getFullYear(), t.getMonth(), 1, 12)), to0 = iso(t);
+  $('#view').innerHTML = `<div class="page-h"><h1>التقارير</h1><span class="sp"></span>
+    <div class="filters"><label class="small">من <input type="date" id="rf" value="${from0}"></label><label class="small">لحد <input type="date" id="rt" value="${to0}"></label>
+    <button class="btn pri" onclick="loadReport()">عرض</button><a class="btn" id="rx">⬇ تصدير Excel</a></div></div><div id="rres">${spinner()}</div>`;
+  loadReport();
+}
+async function loadReport() {
+  const p = qs({from:$('#rf').value, to:$('#rt').value});
+  $('#rx').href = '/api/reports/export?' + p;
+  const r = await api('reports/summary?' + p);
+  const mx = a => Math.max(1, ...a.map(x => x.n));
+  const k = (l, v, c) => `<div class="kpi" style="--k:${c};cursor:default"><div class="l">${l}</div><div class="v ${typeof v === 'number' ? 'num' : ''}" style="${typeof v === 'number' ? '' : 'font-size:20px'}">${v}</div></div>`;
+  $('#rres').innerHTML = `<div class="grid g4" style="margin-bottom:16px">
+    ${k('أجهزة دخلت', r.received, '#000')}${k('اتسلمت', r.delivered, 'var(--green)')}${k('مرفوضة / مرتجعة', r.rejected, 'var(--red)')}
+    ${k('تهيئة أول مرة', r.first_setup, 'var(--teal)')}${k('راجعة في الضمان', r.warranty_returns, 'var(--pink)')}
+    ${k('التحصيل', money(r.payments), 'var(--blue)')}${k('قيمة قطع الغيار', money(r.parts_value), 'var(--purple)')}</div>
+  <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>أداء الفنيين</h3></div><div class="tbl-wrap">${r.techs.length ? `<table class="t"><thead><tr>
+    <th>الفني</th><th>اتعيّن له</th><th>خلّص</th><th>لسه مفتوح</th><th>متوسط أيام التسليم</th><th>قيمة القطع</th><th>المصنعية</th></tr></thead><tbody>
+    ${r.techs.map(x => `<tr><td><b>${esc(x.full_name)}</b></td><td class="num">${x.assigned}</td><td class="num">${x.done}</td><td class="num">${x.open}</td>
+      <td class="num">${x.avg_days ?? '—'}</td><td>${money(x.parts_value)}</td><td>${money(x.labor)}</td></tr>`).join('')}</tbody></table>` : emptyBox('مفيش بيانات في الفترة دي', 'chart')}</div></div>
+  <div class="grid g2">
+    <div class="card"><h3>حسب نوع الدخول</h3>${r.by_type.map(x => `<div class="hbar"><span class="lb">${TYPES[x.k] || x.k}</span><div class="tr"><div style="width:${x.n / mx(r.by_type) * 100}%"></div></div><b class="num">${x.n}</b></div>`).join('') || '<p class="muted">—</p>'}</div>
+    <div class="card"><h3>أكتر الماركات</h3>${r.by_brand.map(x => `<div class="hbar"><span class="lb">${esc(x.k)}</span><div class="tr"><div style="width:${x.n / mx(r.by_brand) * 100}%"></div></div><b class="num">${x.n}</b></div>`).join('') || '<p class="muted">—</p>'}</div>
+  </div>`;
+}
+
+// ================= settings
+async function viewSettings() {
+  if (ME.role !== 'admin') return nav('dashboard');
+  [USERS, CFG] = await Promise.all([api('users'), api('settings')]);
+  const [b, audit] = await Promise.all([api('backups'), api('audit')]);
+  const s = CFG;
+  $('#view').innerHTML = `<div class="page-h"><h1>الإعدادات والمستخدمين</h1></div>
+  <div class="card flush"><div class="card-h" style="padding:16px 18px 0"><h3>المستخدمين</h3><span class="sp"></span><button class="btn sm pri" onclick="mUser()">+ مستخدم جديد</button></div>
+    <div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>الموبايل</th><th>الحالة</th><th></th></tr></thead><tbody>
+    ${USERS.map(u => `<tr><td><b>${esc(u.full_name)}</b></td><td class="mono">${esc(u.username)}</td><td>${chip(ROLE[u.role], {admin:'black', manager:'purple', reception:'blue', technician:'cyan'}[u.role], 'nodot')}</td>
+      <td class="num">${esc(u.phone) || '—'}</td><td>${u.active ? chip('نشط', 'green') : chip('موقوف', 'red')}</td>
+      <td><button class="btn sm" onclick='mUser(${JSON.stringify(u).replace(/'/g, "&#39;")})'>تعديل</button></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="grid g2">
+    <div class="card"><h3>بيانات الشركة (بتظهر في الإيصالات)</h3><div class="grid">
+      <label class="f">الاسم<input id="s-company_name" value="${esc(s.company_name)}"></label>
+      <label class="f">السطر اللي تحت الاسم<input id="s-company_sub" value="${esc(s.company_sub)}"></label>
+      <div class="grid g2"><label class="f">التليفون<input id="s-company_phone" value="${esc(s.company_phone)}" class="num"></label><label class="f">العملة<input id="s-currency" value="${esc(s.currency)}"></label></div>
+      <label class="f">العنوان<input id="s-company_address" value="${esc(s.company_address)}"></label>
+      <label class="f">شروط إيصال الاستلام (كل سطر شرط)<textarea id="s-receipt_terms" style="min-height:130px">${esc(s.receipt_terms)}</textarea></label></div></div>
+    <div><div class="card"><h3>الافتراضيات</h3><div class="grid g2">
+      <label class="f">مدة الضمان الافتراضية (يوم)<input id="s-warranty_days" type="number" min="0" value="${esc(s.warranty_days)}" class="num"></label>
+      <label class="f">ميعاد التسليم الافتراضي (يوم)<input id="s-due_days" type="number" min="0" value="${esc(s.due_days)}" class="num"></label>
+      <label class="f">خروج تلقائي بعد كام دقيقة من غير استخدام<input id="s-idle_minutes" type="number" min="1" max="600" value="${esc(s.idle_minutes)}" class="num"></label></div>
+      <label class="f" style="margin-top:12px">رسالة واتساب "الجهاز جاهز"<textarea id="s-wa_template_ready">${esc(s.wa_template_ready)}</textarea></label>
+      <p class="muted small" style="margin:4px 0 0">ممكن تستخدم: {name} {device} {id} {total} {balance}</p></div>
+    <div class="card"><h3>طابعة الاستيكر (Zebra)</h3><p class="muted small" style="margin-top:0">USB: من "طباعة ▾ استيكر" واختار الزيبرا ومقاس 50×30 مم. شبكة: اكتب الـ IP هنا.</p>
+      <label class="f">IP الطابعة<input id="s-printer_ip" value="${esc(s.printer_ip)}" placeholder="192.168.1.50" class="num"></label></div></div>
+  </div>
+  <div style="margin-bottom:16px"><button class="btn pri lg" onclick="saveSettings()">حفظ الإعدادات</button></div>
+  <div class="card"><div class="card-h"><h3>النسخ الاحتياطي</h3><span class="sp"></span><button class="btn pri sm" onclick="doBackup(this)">اعمل نسخة دلوقتي</button></div>
+    <p class="muted small" style="margin-top:0">السيستم بيعمل نسخة لوحده كل يوم وبيحتفظ بآخر 30 نسخة في: <span class="mono">${esc(b.dir)}</span><br>
+    مهم: انسخ فولدر <b>data</b> كله (فيه النسخ والصور) على فلاشة أو درايف تاني بانتظام.</p>
+    ${b.files.slice(0, 8).map(f => `<div class="small mono" style="padding:4px 0;border-bottom:1px solid var(--line)">${esc(f.name)} · ${(f.size / 1024).toFixed(0)} KB</div>`).join('') || '<p class="muted">لسه مفيش نسخ</p>'}</div>
+  <div class="card"><h3>التذاكر اللي اتمسحت</h3>${audit.filter(a => a.action === 'ticket_deleted').map(a => { const x = JSON.parse(a.detail || '{}');
+    return `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><b class="num">#${x.id}</b> · <span class="mono">${esc(x.serial)}</span> · ${esc(x.customer)} · ${ST[x.status] || ''}
+      ${x.reason ? ` — السبب: ${esc(x.reason)}` : ''}<div class="muted">مسحها ${esc(a.user_name)} · ${fmtD(a.created_at)}</div></div>`; }).join('') || '<p class="muted" style="margin:0">مفيش</p>'}</div>`;
+}
+async function saveSettings() {
+  const keys = ['company_name','company_sub','company_phone','company_address','receipt_terms','warranty_days','due_days','currency','wa_template_ready','printer_ip','idle_minutes'];
+  const r = await act(() => api('settings', Object.fromEntries(keys.map(k => [k, $('#s-' + k).value]))), 'الإعدادات اتحفظت');
+  if (r) { CFG = r; ME.idle_seconds = Math.max(1, +r.idle_minutes || 3) * 60; }
+}
+async function doBackup(b) { b.disabled = true; await act(() => api('backups', {}), 'النسخة الاحتياطية اتعملت'); viewSettings(); }
+function mUser(u) {
+  const e = !!u; u = u || {active:true, role:'technician'};
+  modal({title: e ? 'تعديل: ' + esc(u.full_name) : 'مستخدم جديد', body:`<div class="grid g2">
+    <label class="f req">الاسم بالكامل<input name="full_name" value="${esc(u.full_name)}"></label>
+    <label class="f ${e ? '' : 'req'}">اسم الدخول<input name="username" value="${esc(u.username)}" ${e ? 'disabled' : ''} class="mono"></label>
+    <label class="f">الدور<select name="role">${Object.entries(ROLE).map(([k, v]) => `<option value="${k}" ${k === u.role ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    <label class="f">الموبايل<input name="phone" value="${esc(u.phone)}" class="num"></label>
+    <label class="f ${e ? '' : 'req'}">كلمة المرور<input name="password" type="password" placeholder="${e ? 'سيبها فاضية لو مش هتغيرها' : ''}" autocomplete="new-password"></label>
+    <label class="f">الحالة<select name="active"><option value="1" ${u.active ? 'selected' : ''}>نشط</option><option value="0" ${u.active ? '' : 'selected'}>موقوف</option></select></label></div>`,
+    onOk: f => act(async () => { await api('users', {id:u.id || null, full_name:fv(f, 'full_name'), username:fv(f, 'username'), role:fv(f, 'role'),
+      phone:fv(f, 'phone'), password:f.elements.password.value, active:fv(f, 'active') === '1'}); viewSettings(); }, 'اتحفظ')});
+}
+function changePw() {
+  modal({title:'تغيير كلمة المرور', body:`<label class="f">القديمة<input name="o" type="password" autocomplete="current-password"></label><label class="f">الجديدة<input name="n" type="password" autocomplete="new-password"></label>`,
+    onOk: f => act(() => api('me/password', {old:f.elements.o.value, new:f.elements.n.value}), 'كلمة المرور اتغيرت')});
+}
+
+// ================= printing
+// Sets the page size for this print only, then cleans up.
+function printWith(cls, size, margin) {
+  const st = document.createElement('style');
+  st.textContent = `@page { size:${size}; margin:${margin}; }`;
+  document.head.appendChild(st); document.body.classList.add(cls);
+  window.print();
+  document.body.classList.remove(cls); st.remove();
+}
+async function waitImages() {
+  await Promise.all([...$('#print-area').querySelectorAll('img')].map(i => i.complete || new Promise(r => i.onload = i.onerror = r)));
+}
+async function printLabel(id) {
+  const t = await api('tickets/' + id);
+  $('#print-area').innerHTML = `<div class="big">#${t.id} &nbsp; ${esc(t.serial)}</div>${code128(t.serial)}
+    <div dir="auto">${esc(t.customer_name)}</div><div>IN: ${fmtD(t.received_at)}</div><div dir="auto">${esc(t.assigned_to_name || '-')}</div>`;
+  printWith('p-label', '50mm 30mm', '0');
+}
+async function printZebra(id) { await act(() => api(`tickets/${id}/print_zebra`, {}), 'اتبعت للطابعة'); }
+const docHead = (t, title, tag) => `<div class="hd"><img src="/rt-logo.jpg" alt="RT"><div class="co"><b>${esc(CFG.company_name || 'RT')}</b><span>${esc(CFG.company_sub || '')}</span>
+    ${CFG.company_phone || CFG.company_address ? `<span>${esc([CFG.company_phone, CFG.company_address].filter(Boolean).join(' · '))}</span>` : ''}</div>
+    <div class="no"><span>TICKET NO.</span><b>#${String(t.id).padStart(6, '0')}</b><span>${day(t.received_at)}</span></div></div>
+  <div class="title"><h1>${title}</h1><span class="tag">${tag}</span></div>
+  <div class="bc">${code128(t.serial)}<div>${esc(t.serial)}</div></div>`;
+const kvRow = (k, v, cls = '') => `<tr><th>${k}</th><td class="${cls}">${v || '—'}</td></tr>`;
+async function printIntake(id) {
+  const t = await api('tickets/' + id);
+  const intake = t.photos.filter(p => p.stage === 'intake').length, when = `<span dir="ltr">${fmtD(t.received_at)}</span>`;
+  const terms = (CFG.receipt_terms || '').split('\n').filter(x => x.trim());
+  const copy = tag => `<div class="doc">${docHead(t, 'إيصال استلام جهاز للصيانة', tag)}
+    <h3>بيانات العميل</h3><table class="kvt">${kvRow('اسم العميل', esc(t.customer_name))}${kvRow('رقم الموبايل', `<span dir="ltr">${esc([t.customer_phone, t.customer_phone2].filter(Boolean).join(' / '))}</span>`)}</table>
+    <h3>بيانات الجهاز</h3><table class="kvt">${kvRow('السيريال', `<b dir="ltr">${esc(t.serial)}</b>`)}${kvRow('الجهاز', esc(devName(t)))}
+      ${kvRow('نوع الدخول', TYPES[t.intake_type] + (t.first_visit ? ' — أول دخول للورشة' : '') + (t.under_warranty ? ' — في الضمان' : ''))}
+      ${kvRow('الإكسسوارات المستلمة', esc(t.accessories))}${kvRow('الحالة الظاهرية', esc(t.condition))}
+      ${kvRow('العطل حسب كلام العميل', esc(t.complaint), 'big')}${kvRow('صور وقت الاستلام', intake ? `${intake} صورة متسجلة على السيستم` : '')}
+      ${kvRow('تاريخ ووقت الاستلام', when)}${kvRow('ميعاد التسليم المتوقع', `<span dir="ltr">${day(t.due_at)}</span>`)}${kvRow('موظف الاستلام', esc(t.received_by_name))}</table>
+    ${terms.length ? `<h3>شروط الاستلام</h3><ol class="terms">${terms.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : ''}
+    <div class="sign"><div><b>العميل</b><p>الاسم:</p><p>التوقيع:</p><p>التاريخ:</p></div>
+      <div><b>موظف الاستلام</b><p>الاسم: ${esc(t.received_by_name)}</p><p>التوقيع:</p><p>التاريخ: ${when}</p></div>
+      <div><b>مدير قسم الصيانة</b><p>التوقيع:</p><div class="stamp">ختم الشركة</div></div></div>
+    <div class="ft"><span>توقيع العميل معناه إنه موافق على بيانات الجهاز وشروط الاستلام.</span><span dir="ltr">RT Maintenance — #${t.id}</span></div></div>`;
+  $('#print-area').innerHTML = copy('نسخة العميل') + copy('نسخة الشركة');
+  await waitImages(); api(`tickets/${id}/printed`, {what:'intake'}).catch(() => {});
+  printWith('p-doc', 'A4', '15mm');
+}
+async function printDelivery(id) {
+  const t = await api('tickets/' + id);
+  const when = `<span dir="ltr">${fmtD(t.closed_at || new Date().toISOString().replace('T', ' '))}</span>`;
+  const copy = tag => `<div class="doc compact">${docHead(t, 'إيصال تسليم جهاز وفاتورة صيانة', tag)}
+    <table class="kvt">${kvRow('العميل', `${esc(t.customer_name)} <span dir="ltr">${esc(t.customer_phone)}</span>`)}${kvRow('الجهاز', `${esc(devName(t))} — <b dir="ltr">${esc(t.serial)}</b>`)}
+      ${kvRow('تاريخ الاستلام', `<span dir="ltr">${fmtD(t.received_at)}</span>`)}${kvRow('تاريخ التسليم', when)}${kvRow('الفني', esc(t.assigned_to_name))}</table>
+    <h3>العطل والشغل اللي اتعمل</h3><table class="kvt">${kvRow('العطل', esc(t.complaint))}${t.diagnosis ? kvRow('التشخيص', esc(t.diagnosis)) : ''}
+      ${kvRow('الشغل', t.notes.map(n => `• ${esc(n.text)}`).join('<br>'))}</table>
+    <h3>قطع الغيار والحساب</h3><table class="lst"><tr><th>البيان</th><th>السيريال</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+      ${t.parts.map(p => `<tr><td>${esc(p.name)}</td><td dir="ltr">${esc(p.serial)}</td><td>${p.qty}</td><td>${money(p.price)}</td><td>${money(p.price * p.qty)}</td></tr>`).join('')}
+      <tr><td colspan="4">المصنعية</td><td>${money(t.labor)}</td></tr>
+      ${+t.discount ? `<tr><td colspan="4">الخصم</td><td>- ${money(t.discount)}</td></tr>` : ''}
+      <tr class="tot"><td colspan="4">الإجمالي</td><td>${money(t.total)}</td></tr>
+      <tr><td colspan="4">المدفوع</td><td>${money(t.paid)}</td></tr><tr class="tot"><td colspan="4">الباقي</td><td>${money(t.balance)}</td></tr></table>
+    <h3>الضمان</h3><p style="margin:1mm 0">${t.warranty_until ? `ضمان على الشغل اللي اتعمل لمدة <b>${t.warranty_days}</b> يوم لحد <b dir="ltr">${t.warranty_until}</b>. الضمان مايشملش سوء الاستخدام أو الكسر أو السوائل.` : 'مفيش ضمان على الشغل ده.'}</p>
+    <div class="sign"><div><b>العميل — استلمت الجهاز سليم</b><p>الاسم: ${esc(t.delivered_to || '')}</p><p>التوقيع:</p><p>التاريخ:</p></div>
+      <div><b>موظف التسليم</b><p>الاسم: ${esc(ME.full_name)}</p><p>التوقيع:</p><p>التاريخ: ${when}</p></div>
+      <div><b>مدير قسم الصيانة</b><p>التوقيع:</p><div class="stamp">ختم الشركة</div></div></div>
+    <div class="ft"><span>توقيع العميل معناه إنه استلم الجهاز وراجع الحساب.</span><span dir="ltr">RT Maintenance — #${t.id}</span></div></div>`;
+  $('#print-area').innerHTML = copy('نسخة العميل') + copy('نسخة الشركة');
+  await waitImages(); api(`tickets/${id}/printed`, {what:'delivery'}).catch(() => {});
+  printWith('p-doc', 'A4', '15mm');
+}
 // Code 128-B barcode as SVG (printable ASCII only).
 function code128(text) {
   const P = '212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112'.split(' ');
@@ -266,30 +1258,7 @@ function code128(text) {
   return `<svg viewBox="0 0 ${x + 10} 40" preserveAspectRatio="none">${bars}</svg>`;
 }
 
-// ---------- users & settings
-async function viewUsers() {
-  USERS = await api('users'); const s = await api('settings');
-  $('#view').innerHTML = `<div class="card"><h2>المستخدمين</h2><table><thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>الحالة</th><th></th></tr></thead><tbody>
-    ${USERS.map(u=>`<tr><td>${esc(u.full_name)}</td><td>${esc(u.username)}</td><td>${ROLE[u.role]}</td><td>${u.active?'نشط':'موقوف'}</td>
-      <td><button onclick='editUser(${JSON.stringify(u)})'>تعديل</button></td></tr>`).join('')}</tbody></table>
-    <h3 id="uh">إضافة مستخدم</h3><input type="hidden" id="uid"><div class="grid">
-      <label>الاسم بالكامل<input id="ufn"></label><label>اسم الدخول<input id="uun"></label>
-      <label>الدور<select id="ur">${Object.entries(ROLE).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
-      <label>كلمة المرور<input id="upw" type="password" placeholder="سيبها فاضية في التعديل لو مش هتغيرها"></label>
-      <label>نشط<select id="ua"><option value="1">نشط</option><option value="0">موقوف</option></select></label></div>
-    <button class="pri" onclick="saveUser()">حفظ</button> <button onclick="go('users')">جديد</button></div>
-  <div class="card"><h2>تغيير كلمة المرور بتاعتي</h2><div class="grid"><label>القديمة<input id="po" type="password"></label><label>الجديدة<input id="pnw" type="password"></label></div>
-    <button onclick="changePw()">تغيير</button></div>
-  <div class="card"><h2>الطابعة</h2><p class="muted">لو الزيبرا متوصلة USB: استخدم زرار "طباعة استيكر" واختار طابعة الزيبرا ومقاس 50×30 مم.
-    لو متوصلة بالشبكة: اكتب الـ IP هنا وهتقدر تبعت مباشرة.</p>
-    <div class="row"><input id="pip" value="${esc(s.printer_ip)}" placeholder="192.168.1.50" style="width:220px"><button onclick="savePrinter()">حفظ</button></div></div>`;
-}
-function editUser(u) { $('#uh').textContent = 'تعديل: ' + u.full_name; $('#uid').value = u.id; $('#ufn').value = u.full_name; $('#uun').value = u.username; $('#uun').disabled = true; $('#ur').value = u.role; $('#ua').value = u.active ? 1 : 0; $('#upw').value = ''; }
-async function saveUser() { await api('users', {id:$('#uid').value || null, full_name:$('#ufn').value, username:$('#uun').value, role:$('#ur').value, password:$('#upw').value, active:$('#ua').value === '1'}); go('users'); }
-async function changePw() { await api('me/password', {old:$('#po').value, new:$('#pnw').value}); alert('اتغيرت'); go('users'); }
-async function savePrinter() { await api('settings', {printer_ip:$('#pip').value}); alert('اتحفظ'); }
-
-boot();
+boot().then(() => { if (!ME) showLogin(); });
 </script>
 </body>
 </html>
